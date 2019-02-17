@@ -159,6 +159,20 @@ namespace scrbl {
             return dict;
         }
 
+        public List<char> GetRowContents(char row) {
+            var current = (1, row);
+
+            List<char> contents = new List<char>();
+            while (GetSurroundingDict(current).ContainsKey(RelativePosition.Right)) {
+                contents.Add(GetSquareContents(current));
+                current = GetSurroundingDict(current)[RelativePosition.Right];
+            }
+            //Add the final square (which needs doing manually as it does not have a square to the right).
+            contents.Add(GetSquareContents(current));
+
+            return contents;
+        }
+
         public List<(int column, char row)> GetSurrounding((int column, char row) pos) {
             var oneUp = pos.row != 'A' ? (pos.column, rows[rows.IndexOf(pos.row) - 1]) : (-1, 'X');
             var oneDown = pos.row != 'O' ? (pos.column, rows[rows.IndexOf(pos.row) + 1]) : (-1, 'X');
@@ -222,6 +236,46 @@ namespace scrbl {
 
     //Work out what to do.
     public class DecisionMaker {
+        //For speeding up evaluation by reducing needless checks.
+        
+        public class Zone {
+            private List<(int column, char row)> squares = new List<(int column, char row)>();
+
+            public static List<Zone> FindEmptyZones() {
+                List<(int column, char row)> upper = new List<(int column, char row)>();
+
+                foreach(var square in Game.board.squares.Keys) {
+                    if (Game.board.GetSquareContents(square) != ' ') goto doublebreak1;
+                    foreach (var surrounding in Game.board.GetSurrounding(square)) {
+                        //Break if there is something in the square.
+                        if (Game.board.GetSquareContents(surrounding) == ' ') goto doublebreak1;
+                    }
+                    upper.Add(square);
+                }
+
+            doublebreak1:;
+                List<(int column, char row)> lower = new List<(int column, char row)>();
+
+                foreach (var square in Game.board.squares.Keys.Reverse()) {
+                    if (Game.board.GetSquareContents(square) != ' ') goto doublebreak2;
+                    foreach (var surrounding in Game.board.GetSurrounding(square)) {
+                        //Break if there is something in the square.
+                        if (Game.board.GetSquareContents(surrounding) == ' ') goto doublebreak2;
+                    }
+                    upper.Add(square);
+                }
+
+            doublebreak2:;
+
+                return new List<Zone>(new Zone[] { new Zone() { squares = upper }, new Zone() { squares = lower } });
+            }
+
+            public bool Contains((int column, char row) pos) {
+                return squares.Contains(pos);
+            }
+        }
+        
+
         public class Move {
             public string word = "";
             public (int column, char row) firstLetterPos;
@@ -361,8 +415,21 @@ namespace scrbl {
 
         }
 
-        //Quickly work out whether or not a move is worth checking.
+        private Zone upperZone = new Zone();
+        private Zone lowerZone = new Zone();
+
+        private void RefreshZones() {
+            List<Zone> empty = Zone.FindEmptyZones();
+            upperZone = empty[0];
+            lowerZone = empty[1];
+        }
+
+        //Quickly work out whether or not a move is worth evaluating fully.
         bool QuickEval(Move move) {
+            //Check if the move will be into an empty zone.
+            if (upperZone.Contains(move.firstLetterPos) && upperZone.Contains(move.lastLetterPos)) return false;
+            if (lowerZone.Contains(move.firstLetterPos) && lowerZone.Contains(move.lastLetterPos)) return false;
+
             //Check if any of the squares surrounding the proposed move are occupied.
             var affected = AffectedSquares(move);
             int occupied = 0;
@@ -375,9 +442,12 @@ namespace scrbl {
                 }
             }
 
-            return occupied != 0;
+            if (occupied == 0) return false;
+
+            return true;
         }
 
+        //A more extensive check for moves that will only be used if a move passes QuickEval().
         bool MoveIsPossible(Move move) {
             Direction moveDir = GetDirection(move);
 
@@ -500,6 +570,7 @@ namespace scrbl {
             return true;
         }
 
+        //Shift moves.
         private Move TranslateMove(Move move, Direction dir, int squares) {
             try {
                 if (dir == Direction.Horizontal) {
@@ -548,6 +619,9 @@ namespace scrbl {
 
         //Get all possible moves.
         private List<Move> PossibleMoves(out int considered) {
+            //Refresh the zones so we make sure we don't discard any possible moves.
+            RefreshZones();
+
             /*
              * Getting moves:
              *      1. Loop through words.
@@ -845,11 +919,13 @@ namespace scrbl {
 
             //Split into rows (each row is 15 squares wide).
             List<List<(int column, char row)>> lists = Game.board.squares.Keys.ToList().SplitList(15);
-
+            
             //Iterate over the lists of squares we made.
             foreach (var lst in lists) {
                 List<char> chars = new List<char>();
-                
+
+                Console.WriteLine($"DEBUG: Row {lst[0].row} begins with square {lst[0].column.ToString() + lst[0].row} and ends with {lst.Last().column.ToString() + lst.Last().row}.");
+
                 foreach (var pos in lst) {
                     chars.Add(Game.board.GetSquareContents(pos));
                 }
@@ -857,7 +933,14 @@ namespace scrbl {
                 parts.Add(string.Format(row, strChars));
                 parts.Add(rowSeparator);
             }
-
+            
+            /*
+            foreach(char rowLetter in Game.board.rows) {
+                List<char> contents = Game.board.GetRowContents(rowLetter);
+                parts.Add(string.Format(row, contents.Select(c => c.ToString()).ToArray<object>()));
+                parts.Add(rowSeparator);
+            }
+            */
             //Remove the final separator (which is not required).
             parts.RemoveAt(parts.Count - 1);
             parts.Add(bottom);
@@ -959,7 +1042,7 @@ namespace scrbl {
 
                     Game.letters.Clear();
 
-                    Console.Write("Please give me some letters: ");
+                    Console.Write("\n\nPlease give me some letters: ");
                     string letInp = Console.ReadLine();
                     Game.letters.AddRange(letInp.ToUpper().ToCharArray());
 
@@ -988,7 +1071,7 @@ namespace scrbl {
             Background
         }
 
-        //Do stuff with the console colour set to something and then reset.
+        //Do stuff with a console colour and then reset.
         public static void PerformColor(ConsoleColor color, Action action, ColorType type = ColorType.Foreground) {
             if (type == ColorType.Foreground) {
                 Console.ForegroundColor = color;
