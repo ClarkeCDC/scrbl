@@ -61,8 +61,6 @@ namespace scrbl {
 
         void LoadSquares() {
             if (squares.Keys.Count < 1) {
-
-
                 //Fill a List with normal squares. We add special ones later.
                 int squareCount = rows.Count * columns.Count;
                 List<Square> squareList = Enumerable.Repeat(Square.Normal, squareCount).ToList();
@@ -71,12 +69,25 @@ namespace scrbl {
                 squareList[squareCount / 2] = Square.Middle;
 
                 /* TO DO: Add the other special squares here. */
+                /*
+                int listIndex = 0;
+                for (int columnInt = 0; columnInt < columns.Count; columnInt++)
+                {
+                    int column = columns[columnInt]; //Literally just columnInt + 1 but whatever.
+                    for (int rowInt = 0; rowInt < rows.Count; rowInt++)
+                    {
+                        char row = rows[rowInt];
+                        Console.WriteLine($"DEBUG: Writing {column}, {row}.");
+                        squares[(column, row)] = squareList[listIndex];
+                        listIndex++;
+                    }
+                }
+                */
 
                 int listIndex = 0;
-                for (int columnInt = 0; columnInt < columns.Count; columnInt++) {
-                    int column = columns[columnInt]; //Literally just columnInt + 1 but whatever.
-                    for (int rowInt = 0; rowInt < rows.Count; rowInt++) {
-                        char row = rows[rowInt];
+                foreach (char row in rows) {
+                    foreach (int column in columns) {
+                        Console.WriteLine($"DEBUG: Writing {column}{row}.");
                         squares[(column, row)] = squareList[listIndex];
                         listIndex++;
                     }
@@ -237,14 +248,14 @@ namespace scrbl {
     //Work out what to do.
     public class DecisionMaker {
         //For speeding up evaluation by reducing needless checks.
-        
+
         public class Zone {
             private List<(int column, char row)> squares = new List<(int column, char row)>();
 
             public static List<Zone> FindEmptyZones() {
                 List<(int column, char row)> upper = new List<(int column, char row)>();
 
-                foreach(var square in Game.board.squares.Keys) {
+                foreach (var square in Game.board.squares.Keys) {
                     if (Game.board.GetSquareContents(square) != ' ') goto doublebreak1;
                     foreach (var surrounding in Game.board.GetSurrounding(square)) {
                         //Break if there is something in the square.
@@ -274,7 +285,7 @@ namespace scrbl {
                 return squares.Contains(pos);
             }
         }
-        
+
 
         public class Move {
             public string word = "";
@@ -715,7 +726,7 @@ namespace scrbl {
                 }
 
                 //Start again but vertically.
-                if(!flip) {
+                if (!flip) {
                     flip = true;
                     goto flipTime;
                 }
@@ -765,7 +776,7 @@ namespace scrbl {
             foreach (char ch in move.word.ToUpper()) {
                 score += points[ch];
             }
-            
+
             return score;
         }
 
@@ -804,7 +815,7 @@ namespace scrbl {
 
         public static void LoadDictionaries(string ndefsPath, string defsPath) {
             if (!loaded) {
-                
+
 
                 //Console.WriteLine("Please enter the path to the ndefs file: ");
                 words = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/ndefsPath).ToList();
@@ -865,7 +876,7 @@ namespace scrbl {
                 string currentPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
                 string nodefs = Path.Combine(currentPath, "nodefs.txt");
 
-                if(!File.Exists(nodefs)) {
+                if (!File.Exists(nodefs)) {
                     Console.WriteLine("Unable to find nodefs file!");
                     Console.Write("Enter the path to the nodefs file: ");
                     nodefs = Console.ReadLine();
@@ -903,7 +914,8 @@ namespace scrbl {
 
             //Split into rows (each row is 15 squares wide).
             List<List<(int column, char row)>> lists = Game.board.squares.Keys.ToList().SplitList(15);
-            
+
+
             //Iterate over the lists of squares we made.
             foreach (var lst in lists) {
                 List<char> chars = new List<char>();
@@ -917,7 +929,7 @@ namespace scrbl {
                 parts.Add(string.Format(row, strChars));
                 parts.Add(rowSeparator);
             }
-            
+
             /*
             foreach(char rowLetter in Game.board.rows) {
                 List<char> contents = Game.board.GetRowContents(rowLetter);
