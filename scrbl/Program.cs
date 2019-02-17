@@ -97,11 +97,6 @@ namespace scrbl {
             return ' ';
         }
 
-        public List<string> GetWords((int column, char row) pos) {
-            /* IMPLEMENT THIS */
-            return null;
-        }
-
         public enum RelativePosition {
             Left,
             Right,
@@ -113,6 +108,7 @@ namespace scrbl {
             DiagLR
         }
 
+        //Get the squares surrounding the passed one and return a dictionary.
         public Dictionary<RelativePosition, (int column, char row)> GetSurroundingDict((int column, char row) pos) {
             var oneUp = pos.row != 'A' ? (pos.column, rows[rows.IndexOf(pos.row) - 1]) : (-1, 'X');
             var oneDown = pos.row != 'O' ? (pos.column, rows[rows.IndexOf(pos.row) + 1]) : (-1, 'X');
@@ -750,6 +746,8 @@ namespace scrbl {
 
         public static void LoadDictionaries(string ndefsPath, string defsPath) {
             if (!loaded) {
+                
+
                 //Console.WriteLine("Please enter the path to the ndefs file: ");
                 words = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/ndefsPath).ToList();
                 words.RemoveRange(0, 2); //Remove the title and the line after.
@@ -806,11 +804,21 @@ namespace scrbl {
             PerformColor(ConsoleColor.DarkYellow, () => {
                 Console.WriteLine("Loading dictionaries...");
 
-                Console.Write("Please enter the path to the ndefs file: ");
-                string nodefs = Console.ReadLine();
+                string currentPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+                string nodefs = Path.Combine(currentPath, "nodefs.txt");
 
-                Console.Write("Please enter the path to the defs file: ");
-                string defs = Console.ReadLine();
+                if(!File.Exists(nodefs)) {
+                    Console.WriteLine("Unable to find nodefs file!");
+                    Console.Write("Enter the path to the nodefs file: ");
+                    nodefs = Console.ReadLine();
+                }
+
+                string defs = Path.Combine(currentPath, "defs.txt");
+                if (!File.Exists(defs)) {
+                    Console.WriteLine("Unable to find defs file!");
+                    Console.Write("Enter the path to the defs file: ");
+                    defs = Console.ReadLine();
+                }
 
                 var watch = Stopwatch.StartNew();
                 ScrabbleDictionary.LoadDictionaries(nodefs, defs);
@@ -841,7 +849,7 @@ namespace scrbl {
             //Iterate over the lists of squares we made.
             foreach (var lst in lists) {
                 List<char> chars = new List<char>();
-
+                
                 foreach (var pos in lst) {
                     chars.Add(Game.board.GetSquareContents(pos));
                 }
