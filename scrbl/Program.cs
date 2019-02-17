@@ -449,24 +449,28 @@ namespace scrbl {
 
         //A more extensive check for moves that will only be used if a move passes QuickEval().
         bool MoveIsPossible(Move move) {
-            Direction moveDir = GetDirection(move);
 
-            //Does it wrap around the board?
-            if (moveDir == Direction.Vertical) {
-                //Check if there are enough rows for the word.
-                for (int i = Game.board.rows.IndexOf(move.firstLetterPos.row); i < move.word.Length; i++) {
-                    if (Game.board.rows.Count <= i) {
-                        //No more rows.
-                        return false;
-                    }
-                }
-            } else {
-                //Check if there are enough columns for the word.
-                for (int i = Game.board.columns.IndexOf(move.firstLetterPos.column); i < move.word.Length; i++) {
-                    if (Game.board.columns.Count <= i) {
-                        //No more columns.
-                        return false;
-                    }
+            Direction moveDir = GetDirection(move);
+            var affected = AffectedSquares(move);
+
+            //Does it connect to another word to create a valid one?
+            int iters = 0;
+            int emptyIters = 0;
+            foreach (var thing in affected) {
+                iters++;
+                if (Game.board.GetSquareContents(thing) == ' ') emptyIters++;
+            }
+            //Check if the number of empty squares it affects == the total number of squares it affects.
+            if (iters == emptyIters) {
+                return false;
+            }
+
+            //Does it fit with the letters that are already on the board?
+            for (int i = 0; i < affected.Count; i++) {
+                var pos = affected[i];
+                if (Game.board.GetSquareContents(pos) == ' ') continue;
+                if (Game.board.GetSquareContents(pos) != move.word[i]) {
+                    return false;
                 }
             }
 
@@ -475,7 +479,7 @@ namespace scrbl {
             if (horizontalWord == null) goto skipH;
             if (!ScrabbleDictionary.words.Contains(horizontalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
-                if(!string.IsNullOrWhiteSpace(horizontalWord)) {
+                if (!string.IsNullOrWhiteSpace(horizontalWord)) {
                     return false;
                 }
             }
@@ -490,26 +494,6 @@ namespace scrbl {
                 }
             }
         skipV:
-            //Does it fit with the letters that are already on the board?
-            var affected = AffectedSquares(move);
-            for (int i = 0; i < affected.Count; i++) {
-                var pos = affected[i];
-                if (Game.board.GetSquareContents(pos) == ' ') continue;
-                if (Game.board.GetSquareContents(pos) != move.word[i]) return false;
-            }
-
-            //Does it connect to another word to create a valid one?
-            int iters = 0;
-            int emptyIters = 0;
-            foreach (var thing in affected) {
-                iters++;
-                if (Game.board.GetSquareContents(thing) == ' ') emptyIters++;
-            }
-            //Check if the number of empty squares it affects == the total number of squares it affects.
-            if (iters == emptyIters) return false;
-
-            //A word can be played twice but not a move. (A move holds positioning data, so an identical move would be on top of another.)
-            if (Game.ownMoves.Contains(move) || Game.opponentMoves.Contains(move)) return false;
 
             //Does it get the letters it needs?
             List<char> needed = LettersRequired(move);
@@ -547,26 +531,29 @@ namespace scrbl {
                 }
             }
 
-            //Did it escape the wrapping check?
-            //if (move.firstLetterPos.column != move.lastLetterPos.column && move.firstLetterPos.row != move.lastLetterPos.row) return false;
-            /*
-            //Did it escape that one too?
-            List<List<(int c, char r)>> lists = Game.board.squares.Keys.ToList().SplitList(15);
-            if(moveDir == Direction.Horizontal) {
-                bool found = false;
-                foreach(var lst in lists) {
-                    if(lst.Contains(move.firstLetterPos) && lst.Contains(move.lastLetterPos)) {
-                        found = true;
-                        break;
+            //Does it wrap around the board?
+            if (moveDir == Direction.Vertical) {
+                //Check if there are enough rows for the word.
+                for (int i = Game.board.rows.IndexOf(move.firstLetterPos.row); i < move.word.Length; i++) {
+                    if (Game.board.rows.Count <= i) {
+                        //No more rows.
+                        return false;
                     }
                 }
-
-                if (!found) {
-                    Console.WriteLine($"DEBUG: In word {move.word}: Horizontal placement spread over two rows.");
-                    return false;
+            } else {
+                //Check if there are enough columns for the word.
+                for (int i = Game.board.columns.IndexOf(move.firstLetterPos.column); i < move.word.Length; i++) {
+                    if (Game.board.columns.Count <= i) {
+                        //No more columns.
+                        return false;
+                    }
                 }
             }
-            */
+
+            //A word can be played twice but not a move. (A move holds positioning data, so an identical move would be on top of another.)
+            if (Game.ownMoves.Contains(move) || Game.opponentMoves.Contains(move)) {
+                return false;
+            }
 
             /* TO DO: Add other checks that must be completed. */
 
