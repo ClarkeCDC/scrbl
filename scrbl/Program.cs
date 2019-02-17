@@ -475,7 +475,9 @@ namespace scrbl {
             if (horizontalWord == null) goto skipH;
             if (!ScrabbleDictionary.words.Contains(horizontalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
-                return false;
+                if(!string.IsNullOrWhiteSpace(horizontalWord)) {
+                    return false;
+                }
             }
 
         skipH:
@@ -483,7 +485,9 @@ namespace scrbl {
             if (verticalWord == null) goto skipV;
             if (!ScrabbleDictionary.words.Contains(verticalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
-                return false;
+                if (!string.IsNullOrWhiteSpace(verticalWord)) {
+                    return false;
+                }
             }
         skipV:
             //Does it fit with the letters that are already on the board?
@@ -641,17 +645,11 @@ namespace scrbl {
             //Console.Write("Thinking... 0");
 
             Console.CursorVisible = false;
-            void UpdateConsole(string wd) {
-                //UpdateText($"Thinking... {movesConsidered} {wd}");
-                //Console.Write("\r                                            ");
-                //Console.Write("\r" + wd);
-            }
 
             int bestScore = 0;
 
-
-
             Parallel.ForEach(ScrabbleDictionary.words, (word, stet) => {
+                movesConsidered++;
                 if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape) {
                     stet.Break();
                 }
@@ -668,10 +666,9 @@ namespace scrbl {
                 if (score <= bestScore) return;
                 bool brokeInf = false;
                 Parallel.For(0, 15, (shift, state) => { //Horizontal shift loop.
-
+                    Console.WriteLine("DEBUG: " + (flip ? "Phase two." : "Phase one."));
                     Move shifted = TranslateMove(baseMove, Direction.Horizontal, shift);
                     movesConsidered++;
-                    //UpdateConsole(baseMove.word);
 
                     //Break if the translation failed. (There was an error fitting the move onto the board.)
                     if (shifted.Equals(Move.ERR)) state.Break();
@@ -686,17 +683,17 @@ namespace scrbl {
                         }
                     }
                     bool brokeInfinite = false;
-                    if (score <= bestScore) return;
+                    if (score <= bestScore) state.Break();
                     Parallel.For(0, 15, (downShift, nestedState) => { //Vertical shift loop.
+
                         if (score <= bestScore) state.Break();
                         Move downShifted = TranslateMove(shifted, Direction.Vertical, downShift);
                         movesConsidered++;
-                        UpdateConsole(baseMove.word);
 
                         if (downShifted.Equals(Move.ERR)) nestedState.Break();
 
                         if (!QuickEval(downShifted)) return;
-                        if (score <= bestScore) return;
+                        if (score <= bestScore) state.Break();
                         if (score <= bestScore) state.Break();
                         if (score <= bestScore) nestedState.Break();
                         if (MoveIsPossible(downShifted)) {
@@ -731,11 +728,10 @@ namespace scrbl {
                 }
 
                 //Start again but vertically.
-                //if(!flip) {
-                //    flip = true;
-                //    goto flipTime;
-                //}
-
+                if(!flip) {
+                    flip = true;
+                    goto flipTime;
+                }
             });
 
             considered = movesConsidered;
@@ -746,6 +742,7 @@ namespace scrbl {
         Dictionary<char, int> points = new Dictionary<char, int>();
 
         private int Score(Move move) {
+
             if (points.Keys.Count < 1) {
                 points = new Dictionary<char, int> {
                     { 'A', 1 },
@@ -781,7 +778,7 @@ namespace scrbl {
             foreach (char ch in move.word.ToUpper()) {
                 score += points[ch];
             }
-
+            
             return score;
         }
 
@@ -1008,7 +1005,7 @@ namespace scrbl {
         public static void Run() {
             LoadEverything();
             //Game.letters.AddRange(new char[] { 'Y', 'G', 'H', 'A', 'E', 'I', 'L'});
-            Console.Write("Please give me some letters: ");
+            Console.Write("Letters: ");
             string letterInput = Console.ReadLine();
             Game.letters.AddRange(letterInput.ToUpper().ToCharArray());
 
@@ -1042,7 +1039,7 @@ namespace scrbl {
 
                     Game.letters.Clear();
 
-                    Console.Write("\n\nPlease give me some letters: ");
+                    Console.Write("\n\nLetters: ");
                     string letInp = Console.ReadLine();
                     Game.letters.AddRange(letInp.ToUpper().ToCharArray());
 
