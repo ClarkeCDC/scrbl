@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -460,6 +461,10 @@ namespace scrbl {
 
         //A more extensive check for moves that will only be used if a move passes QuickEval().
         bool MoveIsPossible(Move move) {
+            /*
+            All checks here are placed in order of effectiveness (on a single run with the letters QWERTYU how many words were caught by each).
+            
+            */
 
             Direction moveDir = GetDirection(move);
             var affected = AffectedSquares(move);
@@ -471,6 +476,7 @@ namespace scrbl {
                 iters++;
                 if (Game.board.GetSquareContents(thing) == ' ') emptyIters++;
             }
+
             //Check if the number of empty squares it affects == the total number of squares it affects.
             if (iters == emptyIters) {
                 return false;
@@ -504,8 +510,8 @@ namespace scrbl {
                     return false;
                 }
             }
-        skipV:
 
+        skipV:
             //Does it get the letters it needs?
             List<char> needed = LettersRequired(move);
             List<char> fullAvailable = new List<char>();
@@ -627,7 +633,7 @@ namespace scrbl {
             /*
              * Getting moves:
              *      1. Loop through words.
-             *      2. Skip words where we need >2 more letters than we have.
+             *      2. Skip words where we need >1 more letters than we have. (This can be changed in the config file.)
              *      3. Create a base move for the word. Translate that move to every possible position.
              *      4. Check if the translated move would work.
              *      5. If it does, add it to a List.
@@ -640,7 +646,6 @@ namespace scrbl {
             List<Move> possible = new List<Move>();
 
             Console.ForegroundColor = ConsoleColor.DarkRed;
-            //Console.Write("Thinking... 0");
 
             Console.CursorVisible = false;
 
@@ -656,6 +661,8 @@ namespace scrbl {
             flipTime:
                 Move baseMove = flip ? CreateMove(word, Direction.Vertical) : CreateMove(word);
                 List<char> required = LettersRequired(baseMove);
+
+
                 if (required.Count > 1) {
                     return;
                 }
@@ -873,7 +880,7 @@ namespace scrbl {
             PerformColor(ConsoleColor.DarkYellow, () => {
                 Console.WriteLine("Loading dictionaries...");
 
-                string currentPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+                string currentPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
                 string nodefs = Path.Combine(currentPath, "nodefs.txt");
 
                 if (!File.Exists(nodefs)) {
@@ -920,8 +927,6 @@ namespace scrbl {
             foreach (var lst in lists) {
                 List<char> chars = new List<char>();
 
-                Console.WriteLine($"DEBUG: Row {lst[0].row} begins with square {lst[0].column.ToString() + lst[0].row} and ends with {lst.Last().column.ToString() + lst.Last().row}.");
-
                 foreach (var pos in lst) {
                     chars.Add(Game.board.GetSquareContents(pos));
                 }
@@ -930,13 +935,6 @@ namespace scrbl {
                 parts.Add(rowSeparator);
             }
 
-            /*
-            foreach(char rowLetter in Game.board.rows) {
-                List<char> contents = Game.board.GetRowContents(rowLetter);
-                parts.Add(string.Format(row, contents.Select(c => c.ToString()).ToArray<object>()));
-                parts.Add(rowSeparator);
-            }
-            */
             //Remove the final separator (which is not required).
             parts.RemoveAt(parts.Count - 1);
             parts.Add(bottom);
@@ -1003,7 +1001,6 @@ namespace scrbl {
 
         public static void Run() {
             LoadEverything();
-            //Game.letters.AddRange(new char[] { 'Y', 'G', 'H', 'A', 'E', 'I', 'L'});
             Console.Write("Letters: ");
             string letterInput = Console.ReadLine();
             Game.letters.AddRange(letterInput.ToUpper().ToCharArray());
@@ -1113,6 +1110,20 @@ namespace scrbl {
 
             Console.Write(outputBuilder);
             currentText = text;
+        }
+
+    }
+
+    //Get info from the configuration file.
+    public class Configuration {
+        /* IMPLEMENT THIS */
+        private static Dictionary<string, object> configuration = new Dictionary<string, object>();
+        public static void LoadConfig() {
+            string dir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            string configPath = Path.Combine(dir, "config.txt");
+            if (File.Exists(configPath)) {
+
+            }
         }
     }
 
