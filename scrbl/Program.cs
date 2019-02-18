@@ -71,13 +71,105 @@ namespace scrbl {
 
                 /* TO DO: Add the other special squares here. */
 
+                //These co-ordinates are (columnNumber, rowIndex + 1)
+                List<(int, int)> tWords = new (int, int)[] { //Triple wd
+                    (1, 1),
+                    (8, 1),
+                    (15, 1),
+                    (1, 8),
+                    (15, 8),
+                    (1, 15),
+                    (8, 15),
+                    (15, 15)
+                }.ToList();
+
+                List<(int, int)> dLtrs = new (int, int)[] { //Double ltr
+                    (4, 1),
+                    (12, 1),
+                    (7, 3),
+                    (9, 3),
+                    (8, 4),
+                    (1, 4),
+                    (15, 4),
+                    (3, 7),
+                    (7, 7),
+                    (9, 7),
+                    (13, 7),
+                    (4, 8),
+                    (12, 8),
+                    (3, 9),
+                    (7, 9),
+                    (9, 9),
+                    (13, 9),
+                    (1, 12),
+                    (8, 12),
+                    (15, 12),
+                    (7, 13),
+                    (9, 13),
+                    (4, 15),
+                    (12, 15)
+                }.ToList();
+
+                List<(int, int)> tLtrs = new (int, int)[] { //Triple ltr
+                    (6, 2),
+                    (10, 2),
+                    (2, 6),
+                    (6, 6),
+                    (10, 6),
+                    (14, 6),
+                    (2, 10),
+                    (6, 10),
+                    (10, 10),
+                    (14, 10),
+                    (6, 14),
+                    (10, 14)
+                }.ToList();
+
+                List<(int, int)> dWords = new (int, int)[] { //Double words
+                    (2, 2),
+                    (3, 3),
+                    (4, 4),
+                    (5, 5),
+                    (14, 2),
+                    (13, 3),
+                    (12, 4),
+                    (11, 5),
+                    (5, 11),
+                    (4, 12),
+                    (3, 13),
+                    (2, 14),
+                    (11, 11),
+                    (12, 12),
+                    (13, 13),
+                    (14, 14)
+                }.ToList();
+
+                (int column, char row) CoordinateToSquare((int, int) co) {
+                    return (co.Item1, rows[co.Item2 - 1]);
+                }
+
                 int listIndex = 0;
                 foreach (char row in rows) {
                     foreach (int column in columns) {
-                        Console.WriteLine($"DEBUG: Writing {column}{row}.");
                         squares[(column, row)] = squareList[listIndex];
                         listIndex++;
                     }
+                }
+
+                foreach (var co in tWords) {
+                    squares[CoordinateToSquare(co)] = Square.TripleWord;
+                }
+
+                foreach (var co in tLtrs) {
+                    squares[CoordinateToSquare(co)] = Square.TripleLetter;
+                }
+
+                foreach (var co in dWords) {
+                    squares[CoordinateToSquare(co)] = Square.DoubleWord;
+                }
+
+                foreach (var co in dLtrs) {
+                    squares[CoordinateToSquare(co)] = Square.DoubleLetter;
                 }
             }
         }
@@ -773,8 +865,8 @@ namespace scrbl {
                 /* TO DO: Clean up all of this. */
 
                 //This will have to be calculated for every shifted move once the special squares are added.
-                int score = Score(baseMove);
-                if (score <= bestScore) return;
+                //int score = Score(baseMove);
+                //if (score <= bestScore) return;
 
                 Parallel.For(0, 15, (shift, state) => { //Horizontal shift loop.
                     Move shifted = TranslateMove(baseMove, Direction.Horizontal, shift);
@@ -783,20 +875,21 @@ namespace scrbl {
                     //Break if the translation failed. (There was an error fitting the move onto the board.)
                     if (shifted.Equals(Move.ERR)) state.Break();
 
-                    if (score <= bestScore) state.Break();
+                    //if (score <= bestScore) state.Break();
 
                     if (QuickEval(shifted)) {
                         if (MoveIsPossible(shifted)) {
+                            int score = Score(shifted);
                             if (score > bestScore)
                                 bestScore = score;
                             possible.Add(shifted);
                         }
                     }
 
-                    if (score <= bestScore) state.Break();
+                    //if (score <= bestScore) state.Break();
 
                     Parallel.For(0, 15, (downShift, nestedState) => { //Vertical shift loop.
-                        if (score <= bestScore) state.Break();
+                        //if (score <= bestScore) state.Break();
 
                         Move downShifted = TranslateMove(shifted, Direction.Vertical, downShift);
                         movesConsidered++;
@@ -804,7 +897,7 @@ namespace scrbl {
                         if (downShifted.Equals(Move.ERR)) nestedState.Break();
 
                         if (!QuickEval(downShifted)) return;
-                        if (score <= bestScore) state.Break();
+                        //if (score <= bestScore) state.Break();
                         if (MoveIsPossible(downShifted)) {
 
                             int iters = 0;
@@ -816,7 +909,7 @@ namespace scrbl {
 
                             //if (score <= bestScore) return;
 
-
+                            int score = Score(downShifted);
                             //Only add the move if it links into another word.
                             if (iters != emptyIters) {
                                 if (score > bestScore)
@@ -875,9 +968,53 @@ namespace scrbl {
                 };
             }
 
+            /*
+             * Premium Word Squares: 
+             * The score for an entire word is doubled when one of its letters is placed on a pink square: it is tripled when one of its letters is placed on a red square. 
+             * Include premiums for double or triple letter values, if any, before doubling or tripling the word score. 
+             * If a word is formed that covers two premium word squares, the score is doubled and then re-doubled (4 times the letter count), or tripled and then re-tripled (9 times the letter count). 
+             * NOTE: the center square is a pink square, which doubles the score for the first word.
+            */
+
+            var affected = AffectedSquares(move);
+
+            int doubleWordHits = 0;
+            int tripleWordHits = 0;
+
             int score = 0;
-            foreach (char ch in move.word.ToUpper()) {
-                score += points[ch];
+            for(int i = 0; i < affected.Count; i++) {
+                var squareType = Game.board.GetSquare(affected[i]);
+
+                switch (squareType) {
+                    case Board.Square.Middle:
+                        score += points[move.word[i]];
+                        doubleWordHits++;
+                        break;
+                    case Board.Square.DoubleLetter:
+                        score += points[move.word[i]] * 2;
+                        break;
+                    case Board.Square.TripleLetter:
+                        score += points[move.word[i]] * 3;
+                        break;
+                    case Board.Square.DoubleWord:
+                        score += points[move.word[i]];
+                        doubleWordHits++;
+                        break;
+                    case Board.Square.TripleWord:
+                        score += points[move.word[i]];
+                        tripleWordHits++;
+                        break;
+                    default:
+                        score += points[move.word[i]];
+                        break;
+                }
+            }
+
+            if(doubleWordHits > 0) {
+                //By multiplying doubleWordHits by 2 we get how much we need to multiply the word by: 1 would be 2, 2 would be 4 (see the rules above).
+                score *= doubleWordHits * 2;
+            } else if(tripleWordHits > 0) {
+                score *= tripleWordHits * 3;
             }
 
             return score;
@@ -921,7 +1058,8 @@ namespace scrbl {
 
 
                 //Console.WriteLine("Please enter the path to the ndefs file: ");
-                words = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/ndefsPath).ToList();
+                words = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/
+            ndefsPath).ToList();
                 words.RemoveRange(0, 2); //Remove the title and the line after.
 
                 //Console.WriteLine("Please enter the path to the defs file: ");
