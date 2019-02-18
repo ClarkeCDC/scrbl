@@ -392,29 +392,41 @@ namespace scrbl {
 
             return words;
         }
-        /*
+        
         //Get all the words in one line (the direction of which is determined by the readDirection param).
-        List<string> ReadLine((int column, char row) pos, Direction readDirection) {
+        List<string> ReadLine(Move move, Direction readDirection) {
             List<string> found = new List<string>();
+            var affected = AffectedSquares(move);
 
             StringBuilder bobTheBuilder = new StringBuilder();
-            if(readDirection == Direction.Horizontal) {
-                var squaresOnRow = Game.board.GetRow(pos.row);
-                foreach(var sq in squaresOnRow) {
-                    bobTheBuilder.Append(Game.board.GetSquareContents(sq));
+            if (readDirection == Direction.Horizontal) {
+                foreach(var pos in affected) {
+                    var squaresOnRow = Game.board.GetRow(pos.row);
+                    foreach (var sq in squaresOnRow) {
+                        char contents = Game.board.GetSquareContents(sq);
+                        if (affected.Contains(sq)) {
+                            contents = move.word[affected.IndexOf(sq)];
+                        }
+                        bobTheBuilder.Append(contents);
+                    }
                 }
             } else {
-                var squaresInColumn = Game.board.GetColumn(pos.column);
-                foreach (var sq in squaresInColumn) {
-                    bobTheBuilder.Append(Game.board.GetSquareContents(sq));
+                foreach(var pos in affected) {
+                    var squaresInColumn = Game.board.GetColumn(pos.column);
+                    foreach (var sq in squaresInColumn) {
+                        char contents = Game.board.GetSquareContents(sq);
+                        if (affected.Contains(sq)) {
+                            contents = move.word[affected.IndexOf(sq)];
+                        }
+                        bobTheBuilder.Append(contents);
+                    }
                 }
             }
-
             found = bobTheBuilder.ToString().Split(null).ToList();
 
             return found;
         }
-        */
+        
 
         //Read the entire word created after a move has joined onto another word.
         string ReadWord(Move move, Direction direction) {
@@ -589,6 +601,23 @@ namespace scrbl {
             Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} appears to be valid.");
 
         skipV:
+            //Check some more words.
+            List<string> hWords = ReadLine(move, Direction.Horizontal);
+            foreach(var word in hWords) {
+                if (word.Length < 2) continue;
+                if (!ScrabbleDictionary.words.Contains(word.ToUpper().Trim(null))) {
+                    return false;
+                }
+            }
+
+            List<string> vWords = ReadLine(move, Direction.Vertical);
+            foreach (var word in vWords) {
+                if (word.Length < 2) continue;
+                if (!ScrabbleDictionary.words.Contains(word.ToUpper().Trim(null))) {
+                    return false;
+                }
+            }
+
             //Does it get the letters it needs?
             List<char> needed = LettersRequired(move);
             List<char> fullAvailable = new List<char>();
@@ -600,7 +629,6 @@ namespace scrbl {
                 if (!Game.board.GetSquareContents(sq).Equals(' ')) {
                     fullAvailable.Add(Game.board.GetSquareContents(sq));
                 }
-
             }
 
             bool gotAllNeeded = !needed.Except(fullAvailable).Any();
