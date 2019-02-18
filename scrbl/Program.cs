@@ -407,40 +407,22 @@ namespace scrbl {
                 return AffectedCache.Get(move);
             }
 
-            //We only need to get the indexes for the first position because we can get the direction and length.
-            int columnIndex = Game.board.columns.IndexOf(move.firstLetterPos.column);
-            int rowIndex = Game.board.rows.IndexOf(move.firstLetterPos.row);
             int wordLength = move.word.Length;
             Direction dir = GetDirection(move);
 
             List<(int column, char row)> squares = new List<(int column, char row)>();
+
             if (dir == Direction.Vertical) {
-                //Get all the squares on the board.
-                List<(int column, char row)> boardPositions = Game.board.squares.Keys.ToList();
-
-                int prevIndex = boardPositions.IndexOf(move.firstLetterPos);
-                squares.Add(move.firstLetterPos);
-
-                foreach (var position in boardPositions) {
-                    if (boardPositions.IndexOf(position) == prevIndex + 15) {
-                        if (squares.Count < wordLength) {
-                            prevIndex = boardPositions.IndexOf(position);
-                            squares.Add(position);
-                        } else {
-                            break; //No point continuing if there are no more letters in the word.
-                        }
-                    }
+                for(int i = 0; i < wordLength; i++) {
+                    (int column, char row) square = (move.firstLetterPos.column, 
+                                                     Game.board.rows[Game.board.rows.IndexOf(move.firstLetterPos.row) + i]);
+                    squares.Add(square);
                 }
             } else {
-                //Get all the squares on the board.
-                List<(int column, char row)> boardPositions = Game.board.squares.Keys.ToList();
-
-                //Calculate the difference between the column of the first letter and the column of the last letter.
-                int columnGap = Game.board.columns.IndexOf(move.lastLetterPos.column) - Game.board.columns.IndexOf(move.firstLetterPos.column);
-
-                //Iterate over the board squares from the first letter to the last letter and add those.
-                for (int i = boardPositions.IndexOf(move.firstLetterPos); i <= boardPositions.IndexOf(move.firstLetterPos) + columnGap; i++) {
-                    squares.Add(boardPositions[i]);
+                for (int i = 0; i < wordLength; i++) {
+                    (int column, char row) square = (Game.board.columns[Game.board.columns.IndexOf(move.firstLetterPos.column) + i],
+                                                     move.firstLetterPos.row);
+                    squares.Add(square);
                 }
             }
             if (!AffectedCache.Contains(move)) {
