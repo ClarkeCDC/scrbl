@@ -100,10 +100,6 @@ namespace scrbl {
             Right,
             Up,
             Down,
-            DiagUL,
-            DiagUR,
-            DiagLL,
-            DiagLR
         }
 
         //Get the squares surrounding the passed one and return a dictionary.
@@ -113,31 +109,10 @@ namespace scrbl {
             var oneLeft = pos.column != 1 ? (pos.column - 1, pos.row) : (-1, 'X');
             var oneRight = pos.column != 15 ? (pos.column + 1, pos.row) : (-1, 'X');
 
-            //Diagonal
-            var diagUpLeft = (-1, 'X');
-            var diagDownLeft = (-1, 'X');
-            var diagUpRight = (-1, 'X');
-            var diagDownRight = (-1, 'X');
-            if (!oneUp.Equals((-1, 'X')) && !oneLeft.Equals((-1, 'X'))) {
-                diagUpLeft = (oneLeft.Item1, oneUp.Item2);
-            }
-
-            if (!oneDown.Equals((-1, 'X')) && !oneLeft.Equals((-1, 'X'))) {
-                diagDownLeft = (oneLeft.Item1, oneDown.Item2);
-            }
-
-            if (!oneUp.Equals((-1, 'X')) && !oneRight.Equals((-1, 'X'))) {
-                diagUpRight = (oneRight.Item1, oneUp.Item2);
-            }
-
-            if (!oneDown.Equals((-1, 'X')) && !oneRight.Equals((-1, 'X'))) {
-                diagDownRight = (oneRight.Item1, oneDown.Item2);
-            }
-
             bool TestValid((int column, char row) poz) {
                 return !poz.Equals((-1, 'X'));
             }
-
+            
             Dictionary<RelativePosition, (int column, char row)> dict = new Dictionary<RelativePosition, (int column, char row)>();
             void AddIfValid((int column, char row) poz, RelativePosition rel) {
                 if (TestValid(poz)) {
@@ -149,26 +124,8 @@ namespace scrbl {
             AddIfValid(oneDown, RelativePosition.Down);
             AddIfValid(oneLeft, RelativePosition.Left);
             AddIfValid(oneRight, RelativePosition.Right);
-            AddIfValid(diagUpLeft, RelativePosition.DiagUL);
-            AddIfValid(diagUpRight, RelativePosition.DiagUR);
-            AddIfValid(diagDownLeft, RelativePosition.DiagLL);
-            AddIfValid(diagDownRight, RelativePosition.DiagLR);
 
             return dict;
-        }
-
-        public List<char> GetRowContents(char row) {
-            var current = (1, row);
-
-            List<char> contents = new List<char>();
-            while (GetSurroundingDict(current).ContainsKey(RelativePosition.Right)) {
-                contents.Add(GetSquareContents(current));
-                current = GetSurroundingDict(current)[RelativePosition.Right];
-            }
-            //Add the final square (which needs doing manually as it does not have a square to the right).
-            contents.Add(GetSquareContents(current));
-
-            return contents;
         }
 
         public List<(int column, char row)> GetSurrounding((int column, char row) pos) {
@@ -177,28 +134,7 @@ namespace scrbl {
             var oneLeft = pos.column != 1 ? (pos.column - 1, pos.row) : (-1, 'X');
             var oneRight = pos.column != 15 ? (pos.column + 1, pos.row) : (-1, 'X');
 
-            //Diagonal
-            var diagUpLeft = (-1, 'X');
-            var diagDownLeft = (-1, 'X');
-            var diagUpRight = (-1, 'X');
-            var diagDownRight = (-1, 'X');
-            if (!oneUp.Equals((-1, 'X')) && !oneLeft.Equals((-1, 'X'))) {
-                diagUpLeft = (oneLeft.Item1, oneUp.Item2);
-            }
-
-            if (!oneDown.Equals((-1, 'X')) && !oneLeft.Equals((-1, 'X'))) {
-                diagDownLeft = (oneLeft.Item1, oneDown.Item2);
-            }
-
-            if (!oneUp.Equals((-1, 'X')) && !oneRight.Equals((-1, 'X'))) {
-                diagUpRight = (oneRight.Item1, oneUp.Item2);
-            }
-
-            if (!oneDown.Equals((-1, 'X')) && !oneRight.Equals((-1, 'X'))) {
-                diagDownRight = (oneRight.Item1, oneDown.Item2);
-            }
-
-            (int, char)[] boundingSquares = { oneUp, oneDown, oneLeft, oneRight, diagUpLeft, diagUpRight, diagDownLeft, diagDownRight };
+            (int, char)[] boundingSquares = { oneUp, oneDown, oneLeft, oneRight };
 
             List<(int column, char row)> surrounding = new List<(int column, char row)>();
             foreach (var bSquare in boundingSquares) {
@@ -209,7 +145,6 @@ namespace scrbl {
 
             return surrounding;
         }
-
 
         //Writing
         public void SetSquareContents((int column, char row) pos, char letter) {
@@ -555,7 +490,9 @@ namespace scrbl {
 
             //Does it make a word that works?
             string horizontalWord = ReadWord(move, Direction.Horizontal);
-            if (horizontalWord == null) goto skipH;
+            if(string.IsNullOrWhiteSpace(horizontalWord)) {
+                goto skipH;
+            }
             if (!ScrabbleDictionary.words.Contains(horizontalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
                 if (!string.IsNullOrWhiteSpace(horizontalWord)) {
@@ -565,7 +502,9 @@ namespace scrbl {
 
         skipH:
             string verticalWord = ReadWord(move, Direction.Vertical);
-            if (verticalWord == null) goto skipV;
+            if (string.IsNullOrWhiteSpace(verticalWord)) {
+                goto skipV;
+            }
             if (!ScrabbleDictionary.words.Contains(verticalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
                 if (!string.IsNullOrWhiteSpace(verticalWord)) {
