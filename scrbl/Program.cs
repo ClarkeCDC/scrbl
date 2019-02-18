@@ -499,6 +499,7 @@ namespace scrbl {
                     return false;
                 }
             }
+            Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} appears to be valid.");
 
         skipH:
             string verticalWord = ReadWord(move, Direction.Vertical);
@@ -511,6 +512,7 @@ namespace scrbl {
                     return false;
                 }
             }
+            Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} appears to be valid.");
 
         skipV:
             //Does it get the letters it needs?
@@ -909,29 +911,32 @@ namespace scrbl {
 
         private static List<string> BoardRepresentation() {
             //Define the different parts we need.
-            string top = "┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐";
-            string rowSeparator = "├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤";
+            string topLabels = "    1   2   3   4   5   6   7   8   9  10  11  12  13  14  15";
+            string top = "  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐";
+            string rowSeparator = "  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤";
             string row = "│ {0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6} │ {7} │ {8} │ {9} │ {10} │ {11} │ {12} │ {13} │ {14} │";
-            string bottom = "└───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘";
+            string bottom = "  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘";
 
             //Add the top line.
             List<string> parts = new List<string> {
+                topLabels,
                 top
             };
 
             //Split into rows (each row is 15 squares wide).
             List<List<(int column, char row)>> lists = Game.board.squares.Keys.ToList().SplitList(15);
 
-
-            //Iterate over the lists of squares we made.
+            //Iterate over the list of lists of squares we made.
             foreach (var lst in lists) {
                 List<char> chars = new List<char>();
 
                 foreach (var pos in lst) {
                     chars.Add(Game.board.GetSquareContents(pos));
                 }
+
+                //Turn the list of chars into an array of strings that is officially an array of objects.
                 var strChars = chars.Select(c => c.ToString()).ToArray<object>();
-                parts.Add(string.Format(row, strChars));
+                parts.Add(lst[0].row.ToString() + " " + string.Format(row, strChars));
                 parts.Add(rowSeparator);
             }
 
