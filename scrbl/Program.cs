@@ -9,7 +9,22 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Runtime.Caching.Generic;
 using static scrbl.Utils;
+
+using System;
+using System.Collections;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using static scrbl.Utils;
+using System.Runtime.Caching;
 
 namespace scrbl {
     class Program {
@@ -204,7 +219,7 @@ namespace scrbl {
             bool TestValid((int column, char row) poz) {
                 return !poz.Equals((-1, 'X'));
             }
-            
+
             Dictionary<RelativePosition, (int column, char row)> dict = new Dictionary<RelativePosition, (int column, char row)>();
             void AddIfValid((int column, char row) poz, RelativePosition rel) {
                 if (TestValid(poz)) {
@@ -242,9 +257,9 @@ namespace scrbl {
             List<(int column, char row)> found = new List<(int column, char row)>();
 
             int foundNumber = 0;
-            foreach(var sq in squares.Keys) {
+            foreach (var sq in squares.Keys) {
                 if (foundNumber > 14) break;
-                if(sq.row == row) {
+                if (sq.row == row) {
                     found.Add(sq);
                     foundNumber++;
                 }
@@ -284,6 +299,14 @@ namespace scrbl {
                 Game.ownMoves.Add(move);
             } else {
                 Game.opponentMoves.Add(move);
+            }
+        }
+
+        public void ReloadPremiums() { //Remove any premium squares that have been used.
+            foreach (var sq in squares.Keys) {
+                if (GetSquareContents(sq) != ' ') {
+                    squares[sq] = Square.Normal;
+                }
             }
         }
     }
@@ -354,8 +377,36 @@ namespace scrbl {
             return Direction.Horizontal;
         }
 
+        //Cache the affected squares for moves that go from one square to another.
+        //Move objects are not stored (so less memory is used since strings are not stored), just positions.
+        //The class is used as if it stores the moves, however.
+        class AffectedCache {
+            //private static ConcurrentDictionary<List<(int, char)>, List<(int column, char row)>> dict = new ConcurrentDictionary<List<(int, char)>, List<(int column, char row)>>();
+            static MemoryCache<List<(int, char)>, List<(int column, char row)>> cache = new MemoryCache<List<(int, char)>, List<(int column, char row)>>();
+
+            public static List<(int column, char row)> Get(Move move) {
+                if (!Contains(move)) throw new Exception("The given move was not found in the cache.");
+                
+                return cache[new List<(int, char)>(new (int, char)[] { move.firstLetterPos, move.lastLetterPos })];
+            }
+
+            public static void Add(Move move, List<(int, char)> squares) {
+                List<(int, char)> key = new List<(int, char)>(new (int, char)[] { move.firstLetterPos, move.lastLetterPos });
+                cache[key] = squares;
+            }
+
+            public static bool Contains(Move move) {
+                return cache.Contains(new List<(int, char)>(new (int, char)[] { move.firstLetterPos, move.lastLetterPos }));
+            }
+        }
+
         //Get the squares that a move will put letters on.
         public List<(int column, char row)> AffectedSquares(Move move) {
+            //See if we have the move's position's squares in the cache.
+            if (AffectedCache.Contains(move)) {
+                return AffectedCache.Get(move);
+            }
+
             //We only need to get the indexes for the first position because we can get the direction and length.
             int columnIndex = Game.board.columns.IndexOf(move.firstLetterPos.column);
             int rowIndex = Game.board.rows.IndexOf(move.firstLetterPos.row);
@@ -392,7 +443,9 @@ namespace scrbl {
                     squares.Add(boardPositions[i]);
                 }
             }
-
+            if (!AffectedCache.Contains(move)) {
+                AffectedCache.Add(move, squares);
+            }
             return squares;
         }
 
@@ -414,7 +467,7 @@ namespace scrbl {
             Direction moveDirection = GetDirection(move);
 
             List<string> words = new List<string>();
-            if(moveDirection == Direction.Horizontal) {
+            if (moveDirection == Direction.Horizontal) {
                 //We need to read one large word across, then find any little words going vertically.
                 StringBuilder left = new StringBuilder();
                 StringBuilder right = new StringBuilder();
@@ -475,7 +528,7 @@ namespace scrbl {
                     return up.ToString();
                 }
 
-                foreach(var sq in AffectedSquares(move)) {
+                foreach (var sq in AffectedSquares(move)) {
                     words.Add(ReadVert(sq));
                 }
             } else {
@@ -484,7 +537,7 @@ namespace scrbl {
 
             return words;
         }
-        
+
         //Get all the words in one line (the direction of which is determined by the readDirection param).
         List<string> ReadLine(Move move, Direction readDirection) {
             List<string> found = new List<string>();
@@ -492,7 +545,7 @@ namespace scrbl {
 
             StringBuilder bobTheBuilder = new StringBuilder();
             if (readDirection == Direction.Horizontal) {
-                foreach(var pos in affected) {
+                foreach (var pos in affected) {
                     var squaresOnRow = Game.board.GetRow(pos.row);
                     foreach (var sq in squaresOnRow) {
                         char contents = Game.board.GetSquareContents(sq);
@@ -503,7 +556,7 @@ namespace scrbl {
                     }
                 }
             } else {
-                foreach(var pos in affected) {
+                foreach (var pos in affected) {
                     var squaresInColumn = Game.board.GetColumn(pos.column);
                     foreach (var sq in squaresInColumn) {
                         char contents = Game.board.GetSquareContents(sq);
@@ -518,7 +571,7 @@ namespace scrbl {
 
             return found;
         }
-        
+
 
         //Read the entire word created after a move has joined onto another word.
         string ReadWord(Move move, Direction direction) {
@@ -575,7 +628,7 @@ namespace scrbl {
                         break;
                     }
 
-                    if(affected.Contains(currentSquare)) {
+                    if (affected.Contains(currentSquare)) {
                         contents = move.word[affected.IndexOf(currentSquare)];
                     }
 
@@ -618,6 +671,9 @@ namespace scrbl {
 
         //Quickly work out whether or not a move is worth evaluating fully.
         bool QuickEval(Move move) {
+            //Check if the move has already been played.
+            if (Game.ownMoves.Contains(move) || Game.opponentMoves.Contains(move)) return false;
+
             //Check if the move will be into an empty zone.
             if (upperZone.Contains(move.firstLetterPos) && upperZone.Contains(move.lastLetterPos)) return false;
             if (lowerZone.Contains(move.firstLetterPos) && lowerZone.Contains(move.lastLetterPos)) return false;
@@ -672,7 +728,7 @@ namespace scrbl {
 
             //Does it make a word that works?
             string horizontalWord = ReadWord(move, Direction.Horizontal);
-            if(string.IsNullOrWhiteSpace(horizontalWord) || horizontalWord.Length < 2) {
+            if (string.IsNullOrWhiteSpace(horizontalWord) || horizontalWord.Length < 2) {
                 goto skipH;
             }
             if (!ScrabbleDictionary.words.Contains(horizontalWord.ToUpper().Trim(null))) {
@@ -695,7 +751,7 @@ namespace scrbl {
         skipV:
             //Check some more words.
             List<string> hWords = ReadLine(move, Direction.Horizontal);
-            foreach(var word in hWords) {
+            foreach (var word in hWords) {
                 if (word.Length < 2) continue;
                 if (!ScrabbleDictionary.words.Contains(word.ToUpper().Trim(null))) {
                     return false;
@@ -982,7 +1038,7 @@ namespace scrbl {
             int tripleWordHits = 0;
 
             int score = 0;
-            for(int i = 0; i < affected.Count; i++) {
+            for (int i = 0; i < affected.Count; i++) {
                 var squareType = Game.board.GetSquare(affected[i]);
 
                 switch (squareType) {
@@ -1010,10 +1066,10 @@ namespace scrbl {
                 }
             }
 
-            if(doubleWordHits > 0) {
+            if (doubleWordHits > 0) {
                 //By multiplying doubleWordHits by 2 we get how much we need to multiply the word by: 1 would be 2, 2 would be 4 (see the rules above).
                 score *= doubleWordHits * 2;
-            } else if(tripleWordHits > 0) {
+            } else if (tripleWordHits > 0) {
                 score *= tripleWordHits * 3;
             }
 
@@ -1348,7 +1404,6 @@ namespace scrbl {
             Console.Write(outputBuilder);
             currentText = text;
         }
-
     }
 
     //Get info from the configuration file.
@@ -1365,5 +1420,3 @@ namespace scrbl {
     }
 
 }
-
-
