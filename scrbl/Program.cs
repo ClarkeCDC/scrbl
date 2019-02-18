@@ -70,20 +70,6 @@ namespace scrbl {
                 squareList[squareCount / 2] = Square.Middle;
 
                 /* TO DO: Add the other special squares here. */
-                /*
-                int listIndex = 0;
-                for (int columnInt = 0; columnInt < columns.Count; columnInt++)
-                {
-                    int column = columns[columnInt]; //Literally just columnInt + 1 but whatever.
-                    for (int rowInt = 0; rowInt < rows.Count; rowInt++)
-                    {
-                        char row = rows[rowInt];
-                        Console.WriteLine($"DEBUG: Writing {column}, {row}.");
-                        squares[(column, row)] = squareList[listIndex];
-                        listIndex++;
-                    }
-                }
-                */
 
                 int listIndex = 0;
                 foreach (char row in rows) {
@@ -230,11 +216,10 @@ namespace scrbl {
             letters[pos] = letter;
         }
 
-        public void ExecuteMove(DecisionMaker.Move move, MoveType type) { //Make the changes that would be made for a given move.
+        public void ExecuteMove(DecisionMaker.Move move, MoveType type) { //Update the board for a move.
             if (move.Equals(DecisionMaker.Move.ERR)) return;
             var affected = Game.brain.AffectedSquares(move);
             for (int i = 0; i < affected.Count; i++) {
-                //Console.Write(move.word[i]);
                 SetSquareContents(affected[i], move.word[i]);
             }
 
@@ -366,6 +351,83 @@ namespace scrbl {
             return needed;
         }
 
+        //Read all the words that connect to the word placed by a certain move.
+        List<string> ReadWords(Move move, Direction direction) {
+            //We need the direction of the move so we know where to read multiple words from.
+            Direction moveDirection = GetDirection(move);
+
+            List<string> words = new List<string>();
+            if(moveDirection == Direction.Horizontal) {
+                //We need to read one large word across, then find any little words going vertically.
+                StringBuilder left = new StringBuilder();
+                StringBuilder right = new StringBuilder();
+
+                var currentSquare = move.firstLetterPos;
+                while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Left)) {
+                    char contents = Game.board.GetSquareContents(currentSquare);
+                    if (contents == ' ') break;
+
+                    left.Append(contents);
+                    currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Left];
+                }
+
+                string leftRead = left.ToString();
+                left = new StringBuilder(new string(leftRead.Reverse().ToArray()));
+
+                currentSquare = move.firstLetterPos;
+                while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Right)) {
+                    char contents = Game.board.GetSquareContents(currentSquare);
+                    if (contents == ' ') break;
+
+                    right.Append(contents);
+                    currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Right];
+                }
+
+                string removd = right.Length > 0 ? right.Remove(0, 1).ToString() : right.ToString();
+                left.Append(removd);
+                words.Add(left.ToString());
+
+                //Little words now.
+                string ReadVert((int column, char row) pos) {
+                    StringBuilder up = new StringBuilder();
+                    StringBuilder down = new StringBuilder();
+
+                    var cur = pos;
+                    while (Game.board.GetSurroundingDict(cur).ContainsKey(Board.RelativePosition.Up)) {
+                        char contents = Game.board.GetSquareContents(cur);
+                        if (contents == ' ') break;
+
+                        up.Append(contents);
+                        cur = Game.board.GetSurroundingDict(cur)[Board.RelativePosition.Up];
+                    }
+
+                    string upRead = up.ToString();
+                    up = new StringBuilder(new string(upRead.Reverse().ToArray()));
+
+                    cur = pos;
+                    while (Game.board.GetSurroundingDict(cur).ContainsKey(Board.RelativePosition.Down)) {
+                        char contents = Game.board.GetSquareContents(cur);
+                        if (contents == ' ') break;
+
+                        down.Append(contents);
+                        cur = Game.board.GetSurroundingDict(cur)[Board.RelativePosition.Down];
+                    }
+                    string rm = down.Length > 0 ? down.Remove(0, 1).ToString() : down.ToString();
+                    up.Append(rm);
+
+                    return up.ToString();
+                }
+
+                foreach(var sq in AffectedSquares(move)) {
+                    words.Add(ReadVert(sq));
+                }
+            } else {
+                /* IMPLEMENT VERTICAL */
+            }
+
+            return words;
+        }
+
         //Read the entire word created after a move has joined onto another word.
         string ReadWord(Move move, Direction direction) {
             if (direction == Direction.Horizontal) {
@@ -413,12 +475,12 @@ namespace scrbl {
                 up = new StringBuilder(new string(upRead.Reverse().ToArray()));
 
                 currentSquare = move.firstLetterPos;
-                while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Right)) {
+                while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Down)) {
                     char contents = Game.board.GetSquareContents(currentSquare);
                     if (contents == ' ') break;
 
                     down.Append(contents);
-                    currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Right];
+                    currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Down];
                 }
                 string removd = down.Length > 0 ? down.Remove(0, 1).ToString() : down.ToString();
                 up.Append(removd);
