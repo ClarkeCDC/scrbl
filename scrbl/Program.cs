@@ -146,6 +146,36 @@ namespace scrbl {
             return surrounding;
         }
 
+        public List<(int column, char row)> GetRow(char row) {
+            List<(int column, char row)> found = new List<(int column, char row)>();
+
+            int foundNumber = 0;
+            foreach(var sq in squares.Keys) {
+                if (foundNumber > 14) break;
+                if(sq.row == row) {
+                    found.Add(sq);
+                    foundNumber++;
+                }
+            }
+
+            return found;
+        }
+
+        public List<(int column, char row)> GetColumn(int column) {
+            List<(int column, char row)> found = new List<(int column, char row)>();
+
+            int foundNumber = 0;
+            foreach (var sq in squares.Keys) {
+                if (foundNumber > 14) break;
+                if (sq.column == column) {
+                    found.Add(sq);
+                    foundNumber++;
+                }
+            }
+
+            return found;
+        }
+
         //Writing
         public void SetSquareContents((int column, char row) pos, char letter) {
             letters[pos] = letter;
@@ -362,9 +392,34 @@ namespace scrbl {
 
             return words;
         }
+        /*
+        //Get all the words in one line (the direction of which is determined by the readDirection param).
+        List<string> ReadLine((int column, char row) pos, Direction readDirection) {
+            List<string> found = new List<string>();
+
+            StringBuilder bobTheBuilder = new StringBuilder();
+            if(readDirection == Direction.Horizontal) {
+                var squaresOnRow = Game.board.GetRow(pos.row);
+                foreach(var sq in squaresOnRow) {
+                    bobTheBuilder.Append(Game.board.GetSquareContents(sq));
+                }
+            } else {
+                var squaresInColumn = Game.board.GetColumn(pos.column);
+                foreach (var sq in squaresInColumn) {
+                    bobTheBuilder.Append(Game.board.GetSquareContents(sq));
+                }
+            }
+
+            found = bobTheBuilder.ToString().Split(null).ToList();
+
+            return found;
+        }
+        */
 
         //Read the entire word created after a move has joined onto another word.
         string ReadWord(Move move, Direction direction) {
+            var affected = AffectedSquares(move);
+
             if (direction == Direction.Horizontal) {
                 StringBuilder left = new StringBuilder();
                 StringBuilder right = new StringBuilder();
@@ -372,7 +427,13 @@ namespace scrbl {
                 var currentSquare = move.firstLetterPos;
                 while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Left)) {
                     char contents = Game.board.GetSquareContents(currentSquare);
-                    if (contents == ' ') break;
+                    if (contents == ' ' && !affected.Contains(currentSquare)) {
+                        break;
+                    }
+
+                    if (affected.Contains(currentSquare)) {
+                        contents = move.word[affected.IndexOf(currentSquare)];
+                    }
 
                     left.Append(contents);
                     currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Left];
@@ -384,7 +445,13 @@ namespace scrbl {
                 currentSquare = move.firstLetterPos;
                 while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Right)) {
                     char contents = Game.board.GetSquareContents(currentSquare);
-                    if (contents == ' ') break;
+                    if (contents == ' ' && !affected.Contains(currentSquare)) {
+                        break;
+                    }
+
+                    if (affected.Contains(currentSquare)) {
+                        contents = move.word[affected.IndexOf(currentSquare)];
+                    }
 
                     right.Append(contents);
                     currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Right];
@@ -400,7 +467,13 @@ namespace scrbl {
                 var currentSquare = move.firstLetterPos;
                 while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Up)) {
                     char contents = Game.board.GetSquareContents(currentSquare);
-                    if (contents == ' ') break;
+                    if (contents == ' ' && !affected.Contains(currentSquare)) {
+                        break;
+                    }
+
+                    if(affected.Contains(currentSquare)) {
+                        contents = move.word[affected.IndexOf(currentSquare)];
+                    }
 
                     up.Append(contents);
                     currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Up];
@@ -412,7 +485,13 @@ namespace scrbl {
                 currentSquare = move.firstLetterPos;
                 while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Down)) {
                     char contents = Game.board.GetSquareContents(currentSquare);
-                    if (contents == ' ') break;
+                    if (contents == ' ' && !affected.Contains(currentSquare)) {
+                        break;
+                    }
+
+                    if (affected.Contains(currentSquare)) {
+                        contents = move.word[affected.IndexOf(currentSquare)];
+                    }
 
                     down.Append(contents);
                     currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Down];
@@ -460,7 +539,6 @@ namespace scrbl {
         bool MoveIsPossible(Move move) {
             /*
             All checks here are placed in order of effectiveness (on a single run with the letters QWERTYU how many words were caught by each).
-            
             */
 
             Direction moveDir = GetDirection(move);
@@ -490,27 +568,23 @@ namespace scrbl {
 
             //Does it make a word that works?
             string horizontalWord = ReadWord(move, Direction.Horizontal);
-            if(string.IsNullOrWhiteSpace(horizontalWord)) {
+            if(string.IsNullOrWhiteSpace(horizontalWord) || horizontalWord.Length < 2) {
                 goto skipH;
             }
             if (!ScrabbleDictionary.words.Contains(horizontalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
-                if (!string.IsNullOrWhiteSpace(horizontalWord)) {
-                    return false;
-                }
+                return false;
             }
             Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} appears to be valid.");
 
         skipH:
             string verticalWord = ReadWord(move, Direction.Vertical);
-            if (string.IsNullOrWhiteSpace(verticalWord)) {
+            if (string.IsNullOrWhiteSpace(verticalWord) || verticalWord.Length < 2) {
                 goto skipV;
             }
             if (!ScrabbleDictionary.words.Contains(verticalWord.ToUpper().Trim(null))) {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
-                if (!string.IsNullOrWhiteSpace(verticalWord)) {
-                    return false;
-                }
+                return false;
             }
             Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} appears to be valid.");
 
@@ -642,8 +716,6 @@ namespace scrbl {
              *      5. If it does, add it to a List.
             */
 
-            Console.WriteLine("Initial search phase started...");
-
             int movesConsidered = 0;
 
             List<Move> possible = new List<Move>();
@@ -665,14 +737,17 @@ namespace scrbl {
                 Move baseMove = flip ? CreateMove(word, Direction.Vertical) : CreateMove(word);
                 List<char> required = LettersRequired(baseMove);
 
-
+                //This should be configurable.
                 if (required.Count > 1) {
                     return;
                 }
 
+                /* TO DO: Clean up all of this. */
+
+                //This will have to be calculated for every shifted move once the special squares are added.
                 int score = Score(baseMove);
                 if (score <= bestScore) return;
-                bool brokeInf = false;
+
                 Parallel.For(0, 15, (shift, state) => { //Horizontal shift loop.
                     Move shifted = TranslateMove(baseMove, Direction.Horizontal, shift);
                     movesConsidered++;
@@ -689,11 +764,12 @@ namespace scrbl {
                             possible.Add(shifted);
                         }
                     }
-                    bool brokeInfinite = false;
-                    if (score <= bestScore) state.Break();
-                    Parallel.For(0, 15, (downShift, nestedState) => { //Vertical shift loop.
 
+                    if (score <= bestScore) state.Break();
+
+                    Parallel.For(0, 15, (downShift, nestedState) => { //Vertical shift loop.
                         if (score <= bestScore) state.Break();
+
                         Move downShifted = TranslateMove(shifted, Direction.Vertical, downShift);
                         movesConsidered++;
 
@@ -701,8 +777,6 @@ namespace scrbl {
 
                         if (!QuickEval(downShifted)) return;
                         if (score <= bestScore) state.Break();
-                        if (score <= bestScore) state.Break();
-                        if (score <= bestScore) nestedState.Break();
                         if (MoveIsPossible(downShifted)) {
 
                             int iters = 0;
@@ -725,15 +799,7 @@ namespace scrbl {
                             }
                         }
                     });
-                    if (brokeInfinite) {
-                        brokeInf = true;
-                        state.Break();
-                    }
                 });
-                if (brokeInf) {
-                    return;
-                }
-
                 //Start again but vertically.
                 if (!flip) {
                     flip = true;
