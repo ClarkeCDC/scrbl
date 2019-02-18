@@ -672,7 +672,6 @@ namespace scrbl {
                 if (score <= bestScore) return;
                 bool brokeInf = false;
                 Parallel.For(0, 15, (shift, state) => { //Horizontal shift loop.
-                    Console.WriteLine("DEBUG: " + (flip ? "Phase two." : "Phase one."));
                     Move shifted = TranslateMove(baseMove, Direction.Horizontal, shift);
                     movesConsidered++;
 
