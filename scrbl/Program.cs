@@ -9,22 +9,8 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Runtime.Caching.Generic;
 using static scrbl.Utils;
-
-using System;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using static scrbl.Utils;
-using System.Runtime.Caching;
+// ReSharper disable All
 
 namespace scrbl {
     class Program {
@@ -74,6 +60,7 @@ namespace scrbl {
 
         public readonly List<char> rows = "ABCDEFGHIJKLMNO".ToCharArray().ToList();
         public readonly List<int> columns = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }.ToList();
+        public readonly HashSet<char> placedLetters = new HashSet<char>();
 
         void LoadSquares() {
             if (squares.Keys.Count < 1) {
@@ -292,6 +279,7 @@ namespace scrbl {
             if (move.Equals(DecisionMaker.Move.ERR)) return;
             var affected = Game.brain.AffectedSquares(move);
             for (int i = 0; i < affected.Count; i++) {
+                placedLetters.Add(move.word[i]);
                 SetSquareContents(affected[i], move.word[i]);
             }
 
@@ -316,7 +304,7 @@ namespace scrbl {
         //For speeding up evaluation by reducing needless checks.
 
         public class Zone {
-            private List<(int column, char row)> squares = new List<(int column, char row)>();
+            public List<(int column, char row)> squares = new List<(int column, char row)>();
 
             public static List<Zone> FindEmptyZones() {
                 List<(int column, char row)> upper = new List<(int column, char row)>();
@@ -330,7 +318,7 @@ namespace scrbl {
                     upper.Add(square);
                 }
 
-            doublebreak1:;
+            doublebreak1:
                 List<(int column, char row)> lower = new List<(int column, char row)>();
 
                 foreach (var square in Game.board.squares.Keys.Reverse()) {
@@ -342,7 +330,7 @@ namespace scrbl {
                     upper.Add(square);
                 }
 
-            doublebreak2:;
+            doublebreak2:
 
                 return new List<Zone>(new Zone[] { new Zone() { squares = upper }, new Zone() { squares = lower } });
             }
@@ -382,30 +370,34 @@ namespace scrbl {
         //The class is used as if it stores the moves, however.
         class AffectedCache {
             //private static ConcurrentDictionary<List<(int, char)>, List<(int column, char row)>> dict = new ConcurrentDictionary<List<(int, char)>, List<(int column, char row)>>();
-            static MemoryCache<List<(int, char)>, List<(int column, char row)>> cache = new MemoryCache<List<(int, char)>, List<(int column, char row)>>();
-
-            public static List<(int column, char row)> Get(Move move) {
-                if (!Contains(move)) throw new Exception("The given move was not found in the cache.");
-                
-                return cache[new List<(int, char)>(new (int, char)[] { move.firstLetterPos, move.lastLetterPos })];
+            //static MemoryCache<List<(int, char)>, List<(int column, char row)>> cache = new MemoryCache<List<(int, char)>, List<(int column, char row)>>();
+            private ConcurrentDictionary<(int, char)[], (int column, char row)[]> dict = new ConcurrentDictionary<(int, char)[], (int column, char row)[]>();
+            
+            public List<(int column, char row)> Get(Move move) {
+                (int, char)[] key = { move.firstLetterPos, move.lastLetterPos };
+                return dict[key].ToList();
             }
 
-            public static void Add(Move move, List<(int, char)> squares) {
-                List<(int, char)> key = new List<(int, char)>(new (int, char)[] { move.firstLetterPos, move.lastLetterPos });
-                cache[key] = squares;
+            public void Add(Move move, List<(int, char)> squares) {
+                (int, char)[] key = { move.firstLetterPos, move.lastLetterPos };
+                dict[key] = squares.ToArray();
             }
 
-            public static bool Contains(Move move) {
-                return cache.Contains(new List<(int, char)>(new (int, char)[] { move.firstLetterPos, move.lastLetterPos }));
+            public bool Contains(Move move) {
+                (int, char)[] key = { move.firstLetterPos, move.lastLetterPos };
+                return dict.ContainsKey(key);
             }
         }
+
+        private AffectedCache cache = new AffectedCache();
 
         //Get the squares that a move will put letters on.
         public List<(int column, char row)> AffectedSquares(Move move) {
             //See if we have the move's position's squares in the cache.
-            if (AffectedCache.Contains(move)) {
-                return AffectedCache.Get(move);
-            }
+            //if (cache.Contains(move)) {
+            //    Console.WriteLine("Cached");
+            //    return cache.Get(move);
+            //}
 
             int wordLength = move.word.Length;
             Direction dir = GetDirection(move);
@@ -425,99 +417,28 @@ namespace scrbl {
                     squares.Add(square);
                 }
             }
-            if (!AffectedCache.Contains(move)) {
-                AffectedCache.Add(move, squares);
-            }
+            
+            //Check again because another thread could have cached the squares.
+            //if(!cache.Contains(move)) {
+            //    cache.Add(move, squares);
+            //}
             return squares;
         }
 
         //Returns the letters that we don't have that we need for a given move.
         List<char> LettersRequired(Move move) {
+            
             List<char> needed = new List<char>();
             foreach (char letter in move.word) {
                 if (!Game.letters.Contains(letter)) {
                     needed.Add(letter);
                 }
             }
+            
 
+            //return move.word.ToCharArray().Except(Game.board.placedLetters).ToList();
+            //return Game.board.placedLetters.Except(move.word.ToCharArray()).ToList();
             return needed;
-        }
-
-        //Read all the words that connect to the word placed by a certain move.
-        List<string> ReadWords(Move move, Direction direction) {
-            //We need the direction of the move so we know where to read multiple words from.
-            Direction moveDirection = GetDirection(move);
-
-            List<string> words = new List<string>();
-            if (moveDirection == Direction.Horizontal) {
-                //We need to read one large word across, then find any little words going vertically.
-                StringBuilder left = new StringBuilder();
-                StringBuilder right = new StringBuilder();
-
-                var currentSquare = move.firstLetterPos;
-                while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Left)) {
-                    char contents = Game.board.GetSquareContents(currentSquare);
-                    if (contents == ' ') break;
-
-                    left.Append(contents);
-                    currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Left];
-                }
-
-                string leftRead = left.ToString();
-                left = new StringBuilder(new string(leftRead.Reverse().ToArray()));
-
-                currentSquare = move.firstLetterPos;
-                while (Game.board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Right)) {
-                    char contents = Game.board.GetSquareContents(currentSquare);
-                    if (contents == ' ') break;
-
-                    right.Append(contents);
-                    currentSquare = Game.board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Right];
-                }
-
-                string removd = right.Length > 0 ? right.Remove(0, 1).ToString() : right.ToString();
-                left.Append(removd);
-                words.Add(left.ToString());
-
-                //Little words now.
-                string ReadVert((int column, char row) pos) {
-                    StringBuilder up = new StringBuilder();
-                    StringBuilder down = new StringBuilder();
-
-                    var cur = pos;
-                    while (Game.board.GetSurroundingDict(cur).ContainsKey(Board.RelativePosition.Up)) {
-                        char contents = Game.board.GetSquareContents(cur);
-                        if (contents == ' ') break;
-
-                        up.Append(contents);
-                        cur = Game.board.GetSurroundingDict(cur)[Board.RelativePosition.Up];
-                    }
-
-                    string upRead = up.ToString();
-                    up = new StringBuilder(new string(upRead.Reverse().ToArray()));
-
-                    cur = pos;
-                    while (Game.board.GetSurroundingDict(cur).ContainsKey(Board.RelativePosition.Down)) {
-                        char contents = Game.board.GetSquareContents(cur);
-                        if (contents == ' ') break;
-
-                        down.Append(contents);
-                        cur = Game.board.GetSurroundingDict(cur)[Board.RelativePosition.Down];
-                    }
-                    string rm = down.Length > 0 ? down.Remove(0, 1).ToString() : down.ToString();
-                    up.Append(rm);
-
-                    return up.ToString();
-                }
-
-                foreach (var sq in AffectedSquares(move)) {
-                    words.Add(ReadVert(sq));
-                }
-            } else {
-                /* IMPLEMENT VERTICAL */
-            }
-
-            return words;
         }
 
         //Get all the words in one line (the direction of which is determined by the readDirection param).
@@ -653,6 +574,9 @@ namespace scrbl {
 
         //Quickly work out whether or not a move is worth evaluating fully.
         bool QuickEval(Move move) {
+            //Check if the number of letters we don't have is too many.
+            if (LettersRequired(move).Count > 1) return false;
+
             //Check if the move has already been played.
             if (Game.ownMoves.Contains(move) || Game.opponentMoves.Contains(move)) return false;
 
@@ -677,6 +601,19 @@ namespace scrbl {
             return true;
         }
 
+        //Quick eval for base moves. (i.e. the checks are not position-related.)
+        bool QuickEvalBase(Move baseMove) {
+            if (LettersRequired(baseMove).Count > 1) return false;
+
+            //Check if the letters we need are on the board.
+            //This provides a speed boost at the start of the game.
+            var needed = LettersRequired(baseMove);
+
+            if (needed.Except(Game.board.placedLetters).Any()) return false;
+            return true;
+        }
+
+        /* OPTIMISE THIS */
         //A more extensive check for moves that will only be used if a move passes QuickEval().
         bool MoveIsPossible(Move move) {
             /*
@@ -717,7 +654,6 @@ namespace scrbl {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
                 return false;
             }
-            Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} appears to be valid.");
 
         skipH:
             string verticalWord = ReadWord(move, Direction.Vertical);
@@ -728,7 +664,6 @@ namespace scrbl {
                 Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
                 return false;
             }
-            Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} appears to be valid.");
 
         skipV:
             //Check some more words.
@@ -861,7 +796,8 @@ namespace scrbl {
         }
 
         //Get all possible moves.
-        private List<Move> PossibleMoves(out int considered) {
+        private List<Move> PossibleMoves(out int considered)
+        {
             //Refresh the zones so we make sure we don't discard any possible moves.
             RefreshZones();
 
@@ -876,7 +812,7 @@ namespace scrbl {
 
             int movesConsidered = 0;
 
-            List<Move> possible = new List<Move>();
+            var possible = new List<Move>();
 
             Console.ForegroundColor = ConsoleColor.DarkRed;
 
@@ -884,19 +820,24 @@ namespace scrbl {
 
             int bestScore = 0;
 
-            Parallel.ForEach(ScrabbleDictionary.words, (word, stet) => {
+            Parallel.ForEach(ScrabbleDictionary.words, (word, stet) =>
+            {
                 movesConsidered++;
-                if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape) {
-                    stet.Break();
-                }
+                //if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
+                //{
+                //    stet.Break();
+                //}
 
                 bool flip = false;
-            flipTime:
+                flipTime:
                 Move baseMove = flip ? CreateMove(word, Direction.Vertical) : CreateMove(word);
+                if (!QuickEvalBase(baseMove)) return;
+
                 List<char> required = LettersRequired(baseMove);
 
                 //This should be configurable.
-                if (required.Count > 1) {
+                if (required.Count > 1)
+                {
                     return;
                 }
 
@@ -906,7 +847,9 @@ namespace scrbl {
                 //int score = Score(baseMove);
                 //if (score <= bestScore) return;
 
-                Parallel.For(0, 15, (shift, state) => { //Horizontal shift loop.
+                Parallel.For(0, 15, (shift, state) =>
+                {
+                    //Horizontal shift loop.
                     Move shifted = TranslateMove(baseMove, Direction.Horizontal, shift);
                     movesConsidered++;
 
@@ -915,8 +858,10 @@ namespace scrbl {
 
                     //if (score <= bestScore) state.Break();
 
-                    if (QuickEval(shifted)) {
-                        if (MoveIsPossible(shifted)) {
+                    if (QuickEval(shifted))
+                    {
+                        if (MoveIsPossible(shifted))
+                        {
                             int score = Score(shifted);
                             if (score > bestScore)
                                 bestScore = score;
@@ -926,7 +871,9 @@ namespace scrbl {
 
                     //if (score <= bestScore) state.Break();
 
-                    Parallel.For(0, 15, (downShift, nestedState) => { //Vertical shift loop.
+                    Parallel.For(0, 15, (downShift, nestedState) =>
+                    {
+                        //Vertical shift loop.
                         //if (score <= bestScore) state.Break();
 
                         Move downShifted = TranslateMove(shifted, Direction.Vertical, downShift);
@@ -936,11 +883,12 @@ namespace scrbl {
 
                         if (!QuickEval(downShifted)) return;
                         //if (score <= bestScore) state.Break();
-                        if (MoveIsPossible(downShifted)) {
-
+                        if (MoveIsPossible(downShifted))
+                        {
                             int iters = 0;
                             int emptyIters = 0;
-                            foreach (var thing in AffectedSquares(downShifted)) {
+                            foreach (var thing in AffectedSquares(downShifted))
+                            {
                                 iters++;
                                 if (Game.board.GetSquareContents(thing) == ' ') emptyIters++;
                             }
@@ -949,7 +897,8 @@ namespace scrbl {
 
                             int score = Score(downShifted);
                             //Only add the move if it links into another word.
-                            if (iters != emptyIters) {
+                            if (iters != emptyIters)
+                            {
                                 if (score > bestScore)
                                     bestScore = score;
                                 else
@@ -960,7 +909,8 @@ namespace scrbl {
                     });
                 });
                 //Start again but vertically.
-                if (!flip) {
+                if (!flip)
+                {
                     flip = true;
                     goto flipTime;
                 }
@@ -970,7 +920,7 @@ namespace scrbl {
 
             return possible;
         }
-
+       
         Dictionary<char, int> points = new Dictionary<char, int>();
 
         private int Score(Move move) {
@@ -1059,6 +1009,7 @@ namespace scrbl {
         }
 
         public Move BestMove(out int considered) {
+            
             List<Move> possible = PossibleMoves(out int cons);
             if (possible.Count < 1) {
                 Console.WriteLine("No moves generated!");
@@ -1080,25 +1031,28 @@ namespace scrbl {
 
             considered = cons;
             return best;
+            
+            //return SelectMove(out considered);
         }
     }
 
     //Manage the Scrabble dictionary.
     static class ScrabbleDictionary {
         //Check words using the List, get definitions with the Dictionary.
-        public static List<string> words = new List<string>();
+        //public static List<string> words = new List<string>();
         public static ConcurrentDictionary<string, string> definitions = new ConcurrentDictionary<string, string>();
-
+        public static HashSet<string> words = new HashSet<string>();
         private static bool loaded = false;
 
         public static void LoadDictionaries(string ndefsPath, string defsPath) {
             if (!loaded) {
 
-
                 //Console.WriteLine("Please enter the path to the ndefs file: ");
-                words = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/
+                List<string> wordList = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/
             ndefsPath).ToList();
-                words.RemoveRange(0, 2); //Remove the title and the line after.
+                wordList.RemoveRange(0, 2); //Remove the title and the line after.
+
+                words = new HashSet<string>(wordList);
 
                 //Console.WriteLine("Please enter the path to the defs file: ");
                 List<string> defs = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\defs.txt"*/defsPath).ToList();
@@ -1332,6 +1286,10 @@ namespace scrbl {
             for (int i = 0; i < me.Count; i += size)
                 list.Add(me.GetRange(i, Math.Min(size, me.Count - i)));
             return list;
+        }
+
+        public static bool FastContains<T>(this List<T> me, object obj) {
+            return me.Any((ob) => { return ob.Equals(obj); });
         }
 
         public enum ColorType {
