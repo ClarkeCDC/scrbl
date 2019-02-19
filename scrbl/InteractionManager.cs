@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using static scrbl.Utils;
 
 namespace scrbl {
     static class InteractionManager {
@@ -39,20 +40,21 @@ namespace scrbl {
 
         private static List<string> BoardRepresentation() {
             //Define the different parts we need.
-            string topLabels = "    1   2   3   4   5   6   7   8   9  10  11  12  13  14  15";
-            string top = "  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐";
-            string rowSeparator = "  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤";
-            string row = "│ {0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6} │ {7} │ {8} │ {9} │ {10} │ {11} │ {12} │ {13} │ {14} │";
-            string bottom = "  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘";
+            const string
+                topLabels = "    1   2   3   4   5   6   7   8   9  10  11  12  13  14  15",
+                top = "  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐",
+                rowSeparator = "  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤",
+                row = "│ {0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6} │ {7} │ {8} │ {9} │ {10} │ {11} │ {12} │ {13} │ {14} │",
+                bottom = "  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘";
 
             //Add the top line.
-            List<string> parts = new List<string> {
+            var parts = new List<string> {
                 topLabels,
                 top
             };
 
             //Split into rows (each row is 15 squares wide).
-            List<List<(int column, char row)>> lists = Game.Board.Squares.Keys.ToList().SplitList(15);
+            var lists = Game.Board.Squares.Keys.ToList().SplitList(15);
 
             //Iterate over the list of lists of squares we made.
             foreach (var lst in lists) {
@@ -116,18 +118,18 @@ namespace scrbl {
                     Console.WriteLine("For example, \"hello 1a 5a\" (without the quotes).");
                 }
 
-                if (input.Contains("!ISWORD ")) {
-                    string rest = input.Replace("!ISWORD ", "");
-                    if (ScrabbleDictionary.Words.Contains(rest.ToUpper().Trim(null))) {
-                        Utils.PerformColor(ConsoleColor.DarkCyan, () => {
-                            Console.WriteLine($"Valid: {ScrabbleDictionary.Definitions[rest.ToUpper().Trim(null)].Trim(null)}");
-                        });
+                if (!input.Contains("!ISWORD ")) continue;
 
-                    } else {
-                        Utils.PerformColor(ConsoleColor.DarkCyan, () => {
-                            Console.WriteLine("Invalid");
-                        });
-                    }
+                string rest = input.Replace("!ISWORD ", "");
+                if (ScrabbleDictionary.Words.Contains(rest.ToUpper().Trim(null))) {
+                    Utils.PerformColor(ConsoleColor.DarkCyan, () => {
+                        Console.WriteLine($"Valid: {ScrabbleDictionary.Definitions[rest.ToUpper().Trim(null)].Trim(null)}");
+                    });
+
+                } else {
+                    Utils.PerformColor(ConsoleColor.DarkCyan, () => {
+                        Console.WriteLine("Invalid");
+                    });
                 }
             }
 
@@ -148,9 +150,12 @@ namespace scrbl {
 
         public static void Run() {
             LoadEverything();
-            int peoplePlaying = 1;
-            Console.Write("How many people are playing? (I'm not a person) ");
-            int.TryParse(Console.ReadLine(), out peoplePlaying);
+            Console.Write("How many ");
+            PerformColor(ConsoleColor.DarkCyan, () => { Console.Write("people"); });
+            Console.Write(" are playing? ");
+
+            int.TryParse(Console.ReadLine(), out int peoplePlaying);
+            if (peoplePlaying == 0) return;
             Console.WriteLine();
 
             Console.Write("Letters: ");
