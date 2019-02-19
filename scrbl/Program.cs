@@ -1038,8 +1038,6 @@ namespace scrbl {
 
     //Manage the Scrabble dictionary.
     static class ScrabbleDictionary {
-        //Check words using the List, get definitions with the Dictionary.
-        //public static List<string> words = new List<string>();
         public static ConcurrentDictionary<string, string> definitions = new ConcurrentDictionary<string, string>();
         public static HashSet<string> words = new HashSet<string>();
         private static bool loaded = false;
