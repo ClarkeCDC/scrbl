@@ -14,7 +14,7 @@ namespace scrbl {
         }
 
         //Very fast compared to Contains().
-        public static bool FastContains<T>(this List<T> me, object obj) {
+        public static bool FastContains<T>(this IEnumerable<T> me, object obj) {
             return me.Any(ob => ob.Equals(obj));
         }
 

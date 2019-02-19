@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 
 namespace scrbl {
     static class InteractionManager {
-        static CommandManager mgr = new CommandManager();
 
         private static void LoadEverything() {
             Utils.PerformColor(ConsoleColor.DarkYellow, () => {
@@ -36,20 +35,7 @@ namespace scrbl {
 
                 Console.WriteLine($"Done! Loaded {/*276,643*/ScrabbleDictionary.Words.Count} words in { watch.Elapsed.Milliseconds }ms.");
             });
-
-            //Commands
-            mgr.CommandEntered += Mgr_CommandEntered;
         }
-
-        static void Mgr_CommandEntered(object sender, EventArgs e) {
-            //if (e.Command.StartsWith("!isword") {
-            //    List<string> parts = e.Command.Split(null).ToList();
-            //try {
-
-            //}
-            //}
-        }
-
 
         private static List<string> BoardRepresentation() {
             //Define the different parts we need.

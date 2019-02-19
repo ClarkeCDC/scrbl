@@ -28,20 +28,13 @@ namespace scrbl {
         public readonly List<int> Columns = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }.ToList();
         public readonly HashSet<char> PlacedLetters = new HashSet<char>();
 
-        private void LoadSquares() {
-            if (Squares.Keys.Count >= 1) return;
-
-            //Fill a List with normal squares. We add special ones later.
-            int squareCount = Rows.Count * Columns.Count;
-            List<Square> squareList = Enumerable.Repeat(Square.Normal, squareCount).ToList();
-
-            //Add the middle.
-            squareList[squareCount / 2] = Square.Middle;
-
-            /* TO DO: Add the other special squares here. */
+        private static void GetPremiumPositions(out List<(int, int)> doubleWords,
+                                                out List<(int, int)> tripleWords,
+                                                out List<(int, int)> doubleLetters,
+                                                out List<(int, int)> tripleLetters) {
 
             //These co-ordinates are (columnNumber, rowIndex + 1)
-            List<(int, int)> tWords = new[] { //Triple wd
+            tripleWords = new[] {
                 (1, 1),
                 (8, 1),
                 (15, 1),
@@ -52,7 +45,7 @@ namespace scrbl {
                 (15, 15)
             }.ToList();
 
-            List<(int, int)> dLtrs = new[] { //Double ltr
+            doubleLetters = new[] {
                 (4, 1),
                 (12, 1),
                 (7, 3),
@@ -79,7 +72,7 @@ namespace scrbl {
                 (12, 15)
             }.ToList();
 
-            List<(int, int)> tLtrs = new[] { //Triple ltr
+            tripleLetters = new[] {
                 (6, 2),
                 (10, 2),
                 (2, 6),
@@ -94,7 +87,7 @@ namespace scrbl {
                 (10, 14)
             }.ToList();
 
-            List<(int, int)> dWords = new[] { //Double words
+            doubleWords = new[] {
                 (2, 2),
                 (3, 3),
                 (4, 4),
@@ -112,6 +105,19 @@ namespace scrbl {
                 (13, 13),
                 (14, 14)
             }.ToList();
+        }
+
+        private void LoadSquares() {
+            if (Squares.Keys.Count >= 1) return;
+
+            //Fill a List with normal squares. We add special ones later.
+            int squareCount = Rows.Count * Columns.Count;
+            List<Square> squareList = Enumerable.Repeat(Square.Normal, squareCount).ToList();
+
+            //Add the middle.
+            squareList[squareCount / 2] = Square.Middle;
+
+            GetPremiumPositions(out var doubleWords, out var tripleWords, out var doubleLetters, out var tripleLetters);
 
             (int column, char row) CoordinateToSquare((int, int) co) {
                 (int item1, int item2) = co;
@@ -126,19 +132,19 @@ namespace scrbl {
                 }
             }
 
-            foreach ((int, int) co in tWords) {
+            foreach (var co in tripleWords) {
                 Squares[CoordinateToSquare(co)] = Square.TripleWord;
             }
 
-            foreach ((int, int) co in tLtrs) {
+            foreach (var co in tripleLetters) {
                 Squares[CoordinateToSquare(co)] = Square.TripleLetter;
             }
 
-            foreach ((int, int) co in dWords) {
+            foreach (var co in doubleWords) {
                 Squares[CoordinateToSquare(co)] = Square.DoubleWord;
             }
 
-            foreach ((int, int) co in dLtrs) {
+            foreach (var co in doubleLetters) {
                 Squares[CoordinateToSquare(co)] = Square.DoubleLetter;
             }
         }
@@ -150,7 +156,7 @@ namespace scrbl {
         }
 
         public char GetSquareContents((int column, char row) pos) {
-            return Letters.ContainsKey(pos) ? Letters[pos] : ' ';
+            return Letters.Keys.FastContains(pos) ? Letters[pos] : ' ';
         }
 
         public enum RelativePosition {

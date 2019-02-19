@@ -71,12 +71,6 @@ namespace scrbl {
 
         //Get the squares that a move will put Letters on.
         public List<(int column, char row)> AffectedSquares(Move move) {
-            //See if we have the move's position's squares in the cache.
-            //if (cache.Contains(move)) {
-            //    Console.WriteLine("Cached");
-            //    return cache.Get(move);
-            //}
-
             int wordLength = move.Word.Length;
             Direction dir = GetDirection(move);
 
@@ -102,9 +96,11 @@ namespace scrbl {
         //Returns the Letters that we don't have that we need for a given move.
         private static List<char> LettersRequired(Move move) {
             var needed = new List<char>();
-            foreach (char letter in move.Word) {
-                if (!Game.Letters.Contains(letter)) {
-                    needed.Add(letter);
+
+            //Speed is very important here, hence the use of a for loop and FastContains().
+            for (int i = 0; i < move.Word.Length; i++) {
+                if (!Game.Letters.FastContains(move.Word[i])) {
+                    needed.Add(move.Word[i]);
                 }
             }
 
@@ -112,14 +108,13 @@ namespace scrbl {
         }
 
         //Get all the words in one line (the direction of which is determined by the readDirection param).
-        List<string> ReadLine(Move move, Direction readDirection) {
-            List<string> found = new List<string>();
+        private List<string> ReadLine(Move move, Direction readDirection) {
             var affected = AffectedSquares(move);
 
-            StringBuilder bobTheBuilder = new StringBuilder();
+            var bobTheBuilder = new StringBuilder();
             if (readDirection == Direction.Horizontal) {
-                foreach (var pos in affected) {
-                    var squaresOnRow = Game.Board.GetRow(pos.row);
+                foreach ((int _, char row) in affected) {
+                    var squaresOnRow = Game.Board.GetRow(row);
                     foreach (var sq in squaresOnRow) {
                         char contents = Game.Board.GetSquareContents(sq);
                         if (affected.Contains(sq)) {
@@ -140,16 +135,46 @@ namespace scrbl {
                     }
                 }
             }
-            found = bobTheBuilder.ToString().Split(null).ToList();
+            List<string> found = bobTheBuilder.ToString().Split(null).ToList();
 
             return found;
         }
-
 
         //Read the entire word created after a move has joined onto another word.
         private string ReadWord(Move move, Direction direction) {
             List<(int column, char row)> affected = AffectedSquares(move);
 
+            switch (direction) {
+                case Direction.Horizontal:
+                    //Get all the squares in the row.
+                    var rowSquares = Game.Board.GetRow(move.FirstLetterPos.row);
+
+                    var rowBuilder = new StringBuilder();
+                    for (int i = 0; i < rowSquares.Count; i++) {
+                        //If the square will be changed by the move, use the move's letter. Otherwise, use the existing contents.
+                        rowBuilder.Append(affected.FastContains(rowSquares[i])
+                            ? move.Word[affected.IndexOf(rowSquares[i])]
+                            : Game.Board.GetSquareContents(rowSquares[i]));
+                    }
+
+                    return rowBuilder.ToString().Trim(null);
+
+                case Direction.Vertical:
+                    //Get all the squares in the column.
+                    var columnSquares = Game.Board.GetColumn(move.FirstLetterPos.column);
+
+                    var columnBuilder = new StringBuilder();
+                    for (int i = 0; i < columnSquares.Count; i++) {
+                        columnBuilder.Append(affected.FastContains(columnSquares[i])
+                            ? move.Word[affected.IndexOf(columnSquares[i])]
+                            : Game.Board.GetSquareContents(columnSquares[i]));
+                    }
+
+                    return columnBuilder.ToString().Trim(null);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
+            }
+            /*
             if (direction == Direction.Horizontal) {
                 var left = new StringBuilder();
                 var right = new StringBuilder();
@@ -230,7 +255,7 @@ namespace scrbl {
                 up.Append(removed);
                 return up.ToString();
             }
-
+            */
         }
 
         private Zone _upperZone = new Zone();
