@@ -1044,57 +1044,29 @@ namespace scrbl {
         public static HashSet<string> words = new HashSet<string>();
         private static bool loaded = false;
 
-        public static void LoadDictionaries(string ndefsPath, string defsPath) {
+        public static void LoadDictionaries(string ndefs, string defs) {
             if (!loaded) {
+                words = new HashSet<string>(File.ReadAllLines(ndefs));
+                words.Remove(words.First());
+                words.Remove(words.First());
 
-                //Console.WriteLine("Please enter the path to the ndefs file: ");
-                List<string> wordList = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\nodefs.txt"*/
-            ndefsPath).ToList();
-                wordList.RemoveRange(0, 2); //Remove the title and the line after.
-
-                words = new HashSet<string>(wordList);
-
-                //Console.WriteLine("Please enter the path to the defs file: ");
-                List<string> defs = File.ReadAllLines(/*"C:\\Users\\alexj\\source\\repos\\scrbl\\scrbl\\Properties\\defs.txt"*/defsPath).ToList();
-                defs.RemoveRange(0, 2);
-
-                //Loop more efficiently in parallel.
-                Parallel.ForEach(defs, (line) => {
-
-                    /*
-                     Examples:
-                     AA	a volcanic rock consisting of angular blocks of lava with a very rough surface [n -S]
-                     AAH "an interjection expressing surprise [interj] / to exclaim in surprise [v -ED, -ING, -S]"
-                    */
-
-                    //We need to split from the whitespace after the first word and remove quotes and strings in [].
-
-                    //Separate the word from the definition.
+                List<string> defsList = File.ReadAllLines(defs).ToList();
+                Parallel.ForEach(defsList, (line) => {
                     string[] separated = line.Split(null, 2);
-                    string word = "", def = "";
-                    try {
-                        word = separated[0];
-                        def = separated[1];
-                    } catch {
-                        goto cont;
+                    
+                    if (separated.Length < 2) {
+                        return; //Skip
                     }
 
-                    /* TO DO: Add the same root word but with the suffix given between square brackets (where present). */
+                    string word = separated[0];
+                    string def = separated[1];
 
-                    //Remove the square brackets.
                     Regex squareBracketRegex = new Regex(@"\[([^\]]+)\]");
                     def = squareBracketRegex.Replace(def, "");
-
-                    //Remove the quotes.
                     def = def.Replace("\"", "");
 
-                    try {
-                        definitions[word] = def;
-                    } catch { }
-
-                cont:;
+                    definitions.TryAdd(word, def);
                 });
-
                 loaded = true;
             }
         }
