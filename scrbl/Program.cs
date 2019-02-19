@@ -651,7 +651,8 @@ namespace scrbl {
                 goto skipH;
             }
             if (!ScrabbleDictionary.words.Contains(horizontalWord.ToUpper().Trim(null))) {
-                Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
+                //Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
+                Console.WriteLine($"DEBUG: {move.word} -> {horizontalWord} X");
                 return false;
             }
 
@@ -661,7 +662,8 @@ namespace scrbl {
                 goto skipV;
             }
             if (!ScrabbleDictionary.words.Contains(verticalWord.ToUpper().Trim(null))) {
-                Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
+                //Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
+                Console.WriteLine($"DEBUG: {move.word} -> {verticalWord} X");
                 return false;
             }
 
@@ -698,7 +700,7 @@ namespace scrbl {
 
             bool gotAllNeeded = !needed.Except(fullAvailable).Any();
             if (!gotAllNeeded) {
-                Console.WriteLine($"DEBUG: In word {move.word}: Needed {{{string.Join(", ", needed)}}}, only have {{{string.Join(", ", fullAvailable)}}}");
+                //Console.WriteLine($"DEBUG: In word {move.word}: Needed {{{string.Join(", ", needed)}}}, only have {{{string.Join(", ", fullAvailable)}}}");
                 return false;
             }
 
@@ -713,7 +715,7 @@ namespace scrbl {
             foreach (char letter in move.word) {
                 int count = (from temp in move.word where temp.Equals(letter) select temp).Count();
                 if (legalUses[letter] < count) {
-                    Console.WriteLine($"DEBUG: In word {move.word}: Used letter {letter.ToString()} {count} times when the limit was {legalUses[letter]}.");
+                    //Console.WriteLine($"DEBUG: In word {move.word}: Used letter {letter.ToString()} {count} times when the limit was {legalUses[letter]}.");
                     return false;
                 }
             }
@@ -1202,6 +1204,10 @@ namespace scrbl {
             LoadEverything();
             Console.Write("Letters: ");
             string letterInput = Console.ReadLine();
+            while (!letterInput.All(c => Char.IsLetter(c) || c == '_') || letterInput.Length > 7) {
+                Console.Write("Letters: ");
+                letterInput = Console.ReadLine();
+            }
             Game.letters.AddRange(letterInput.ToUpper().ToCharArray());
 
             while (true) {
