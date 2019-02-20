@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,19 +12,21 @@ namespace scrbl {
         public static HashSet<string> Words = new HashSet<string>();
         private static bool _loaded;
 
-        public static void LoadDictionaries(string ndefs, string defs) {
+        public static void LoadDictionaries() {
             if (_loaded) return;
 
-            Words = new HashSet<string>(File.ReadAllLines(ndefs));
-            Words.Remove(Words.First());
-            Words.Remove(Words.First());
+            Words = new HashSet<string>(Properties.Resources.nodefs.Lines());
+            Words.RemoveRange(0, 2);
 
-            List<string> defsList = File.ReadAllLines(defs).ToList();
-            Parallel.ForEach(defsList, line => {
+            List<string> defsList = Properties.Resources.defs.Lines().ToList();
+            defsList.RemoveRange(0, 2);
+
+            Parallel.For(0, defsList.Count, (index) => {
+                string line = defsList[index];
                 string[] separated = line.Split(null, 2);
 
                 if (separated.Length < 2) {
-                    return; //Skip
+                    return;
                 }
 
                 string word = separated[0];
@@ -35,6 +38,7 @@ namespace scrbl {
 
                 Definitions.TryAdd(word, def);
             });
+
             _loaded = true;
         }
     }

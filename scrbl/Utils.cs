@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -42,6 +43,24 @@ namespace scrbl {
             action.Invoke();
             watch.Stop();
             return watch.Elapsed.Seconds;
+        }
+
+        //Separate a string into lines.
+        public static IEnumerable<string> Lines(this string str) {
+            using (var reader = new StringReader(str)) {
+                string line;
+                //Keep going until there are no more lines.
+                while ((line = reader.ReadLine()) != null) {
+                    //Add the line we just read to the return value.
+                    yield return line;
+                }
+            }
+        }
+
+        //Remove a range from a HashSet. (I know usually it wouldn't make sense, but the dictionaries are in order.)
+        public static void RemoveRange<T>(this HashSet<T> me, int inclusiveStart, int count) {
+            int s = inclusiveStart;
+            me.RemoveWhere(x => s++ < inclusiveStart + count);
         }
     }
 }

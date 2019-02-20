@@ -14,24 +14,8 @@ namespace scrbl {
             Utils.PerformColor(ConsoleColor.DarkYellow, () => {
                 Console.WriteLine("Loading dictionaries...");
 
-                string currentPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-                string nodefs = Path.Combine(currentPath, "nodefs.txt");
-
-                if (!File.Exists(nodefs)) {
-                    Console.WriteLine("Unable to find nodefs file!");
-                    Console.Write("Enter the path to the nodefs file: ");
-                    nodefs = Console.ReadLine();
-                }
-
-                string defs = Path.Combine(currentPath, "defs.txt");
-                if (!File.Exists(defs)) {
-                    Console.WriteLine("Unable to find defs file!");
-                    Console.Write("Enter the path to the defs file: ");
-                    defs = Console.ReadLine();
-                }
-
-                var watch = Stopwatch.StartNew();
-                ScrabbleDictionary.LoadDictionaries(nodefs, defs);
+                Stopwatch watch = Stopwatch.StartNew();
+                ScrabbleDictionary.LoadDictionaries();
                 watch.Stop();
 
                 Console.WriteLine($"Done! Loaded {/*276,643*/ScrabbleDictionary.Words.Count} words in { watch.Elapsed.Milliseconds }ms.");
@@ -103,7 +87,7 @@ namespace scrbl {
 
             //The squares should probably be validated... meh.
 
-            DecisionMaker.Move move = new DecisionMaker.Move(parts[0], firstPos, lastPos);
+            var move = new DecisionMaker.Move(parts[0], firstPos, lastPos);
             return move;
         }
 
@@ -112,10 +96,14 @@ namespace scrbl {
             string input = "";
             while (!ValidateMoveInput(input)) {
                 Console.Write("Enter a move (type '?' for help): ");
+
                 input = Console.ReadLine().ToUpper();
                 if (input.Contains("?")) {
                     Console.WriteLine("Moves should be given in the format: word <start square> <end square>");
                     Console.WriteLine("For example, \"hello 1a 5a\" (without the quotes).");
+                    Console.WriteLine(
+                        "You can also enter commands. Currently you can use '!isword word' to check if 'word' " +
+                        "is valid.");
                 }
 
                 if (!input.Contains("!ISWORD ")) continue;
@@ -134,9 +122,6 @@ namespace scrbl {
             }
 
             var move = ParseMove(input);
-            Console.WriteLine($"DEBUG: {input} first column is {move.FirstLetterPos.column}\nsecond column is {move.LastLetterPos.column}\n" +
-                              $"first row is {move.FirstLetterPos.row}\n" +
-                              $"second row is {move.LastLetterPos.row}");
             return move;
         }
 
@@ -160,7 +145,7 @@ namespace scrbl {
 
             Console.Write("Letters: ");
             string letterInput = Console.ReadLine();
-            while (!letterInput.All(c => Char.IsLetter(c) || c == '_') || letterInput.Length > 7) {
+            while (!letterInput.All(c => char.IsLetter(c) || c == '_') || letterInput.Length > 7) {
                 Console.Write("Letters: ");
                 letterInput = Console.ReadLine();
             }
@@ -180,7 +165,7 @@ namespace scrbl {
                         selfMove = Game.Brain.BestMove(out considered);
                     });
 
-                    Utils.PerformColor(ConsoleColor.Magenta, () => {
+                    PerformColor(ConsoleColor.Magenta, () => {
                         Console.WriteLine($"Considered {considered} moves in {time} seconds.");
                     });
 
