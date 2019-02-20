@@ -161,7 +161,7 @@ namespace scrbl {
 
                     DecisionMaker.Move selfMove = null;
                     int considered = 0;
-                    int time = Utils.Time(() => {
+                    int time = Time(() => {
                         selfMove = Game.Brain.BestMove(out considered);
                     });
 
@@ -178,7 +178,7 @@ namespace scrbl {
                     Console.WriteLine(MoveToString(selfMove));
 
                     Console.Write($"{selfMove.Word.ToLower()}: ");
-                    Utils.PerformColor(ConsoleColor.DarkBlue, () => {
+                    PerformColor(ConsoleColor.DarkBlue, () => {
                         Console.Write($"'{ScrabbleDictionary.Definitions[selfMove.Word].Trim(null)}'");
                     });
 

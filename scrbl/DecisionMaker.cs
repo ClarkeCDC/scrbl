@@ -12,7 +12,7 @@ namespace scrbl {
             public List<(int column, char row)> Squares = new List<(int column, char row)>();
 
             public static List<Zone> FindEmptyZones() {
-                List<(int column, char row)> upper = new List<(int column, char row)>();
+                var upper = new List<(int column, char row)>();
 
                 foreach (var square in Game.Board.Squares.Keys) {
                     if (Game.Board.GetSquareContents(square) != ' ') goto doublebreak1;
@@ -174,88 +174,6 @@ namespace scrbl {
                 default:
                     throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
             }
-            /*
-            if (direction == Direction.Horizontal) {
-                var left = new StringBuilder();
-                var right = new StringBuilder();
-
-                (int column, char row) currentSquare = move.FirstLetterPos;
-                while (Game.Board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Left)) {
-                    char contents = Game.Board.GetSquareContents(currentSquare);
-                    if (contents == ' ' && !affected.Contains(currentSquare)) {
-                        break;
-                    }
-
-                    if (affected.Contains(currentSquare)) {
-                        contents = move.Word[affected.IndexOf(currentSquare)];
-                    }
-
-                    left.Append(contents);
-                    currentSquare = Game.Board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Left];
-                }
-
-                string leftRead = left.ToString();
-                left = new StringBuilder(new string(leftRead.Reverse().ToArray()));
-
-                currentSquare = move.FirstLetterPos;
-                while (Game.Board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Right)) {
-                    char contents = Game.Board.GetSquareContents(currentSquare);
-                    if (contents == ' ' && !affected.Contains(currentSquare)) {
-                        break;
-                    }
-
-                    if (affected.Contains(currentSquare)) {
-                        contents = move.Word[affected.IndexOf(currentSquare)];
-                    }
-
-                    right.Append(contents);
-                    currentSquare = Game.Board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Right];
-                }
-
-                string removed = right.Length > 0 ? right.Remove(0, 1).ToString() : right.ToString();
-                left.Append(removed);
-                return left.ToString();
-            } else {
-                var up = new StringBuilder();
-                var down = new StringBuilder();
-
-                (int column, char row) currentSquare = move.FirstLetterPos;
-                while (Game.Board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Up)) {
-                    char contents = Game.Board.GetSquareContents(currentSquare);
-                    if (contents == ' ' && !affected.Contains(currentSquare)) {
-                        break;
-                    }
-
-                    if (affected.Contains(currentSquare)) {
-                        contents = move.Word[affected.IndexOf(currentSquare)];
-                    }
-
-                    up.Append(contents);
-                    currentSquare = Game.Board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Up];
-                }
-
-                string upRead = up.ToString();
-                up = new StringBuilder(new string(upRead.Reverse().ToArray()));
-
-                currentSquare = move.FirstLetterPos;
-                while (Game.Board.GetSurroundingDict(currentSquare).ContainsKey(Board.RelativePosition.Down)) {
-                    char contents = Game.Board.GetSquareContents(currentSquare);
-                    if (contents == ' ' && !affected.Contains(currentSquare)) {
-                        break;
-                    }
-
-                    if (affected.Contains(currentSquare)) {
-                        contents = move.Word[affected.IndexOf(currentSquare)];
-                    }
-
-                    down.Append(contents);
-                    currentSquare = Game.Board.GetSurroundingDict(currentSquare)[Board.RelativePosition.Down];
-                }
-                string removed = down.Length > 0 ? down.Remove(0, 1).ToString() : down.ToString();
-                up.Append(removed);
-                return up.ToString();
-            }
-            */
         }
 
         private Zone _upperZone = new Zone();
