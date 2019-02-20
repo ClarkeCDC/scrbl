@@ -165,8 +165,17 @@ namespace scrbl {
             while (true) {
                 try {
                     for (int i = 0; i < peoplePlaying; i++) {
-                        Game.Board.ExecuteMove(GetMoveInput(), Board.MoveType.Opponent);
-                        PrintBoard();
+                        var opponentMove = GetMoveInput();
+                        if (!ScrabbleDictionary.Words.FastContains(opponentMove.Word)) {
+                            PerformColor(ConsoleColor.DarkRed, () => {
+                                Console.WriteLine($"{opponentMove.Word} is not a valid Scrabble word!");
+                            });
+                            i--;
+                        } else {
+                            Game.Board.ExecuteMove(opponentMove, Board.MoveType.Opponent);
+                            PrintBoard();
+                        }
+                        
                     }
 
                     DecisionMaker.Move selfMove = null;
