@@ -159,6 +159,10 @@ namespace scrbl {
             return Letters.Keys.FastContains(pos) ? Letters[pos] : ' ';
         }
 
+        public bool IsEmpty((int column, char row) pos) {
+            return Letters.Keys.FastContains(pos);
+        }
+
         public enum RelativePosition {
             Left,
             Right,

@@ -62,5 +62,29 @@ namespace scrbl {
             int s = inclusiveStart;
             me.RemoveWhere(x => s++ < inclusiveStart + count);
         }
+
+        public static bool TryNext<T>(this List<T> me, T current, out T result) {
+            try {
+                int curIndex = me.IndexOf(current);
+                T next = me[curIndex + 1];
+                result = next;
+                return true;
+            } catch {
+                result = current;
+                return false;
+            }
+        }
+
+        public static bool TryNext<T>(this List<T> me, T current, out T result, int times) {
+            try {
+                int curIndex = me.IndexOf(current);
+                T next = me[curIndex + times];
+                result = next;
+                return true;
+            } catch {
+                result = current;
+                return false;
+            }
+        }
     }
 }

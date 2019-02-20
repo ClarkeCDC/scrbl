@@ -63,6 +63,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="C5">
+      <Version>2.5.3</Version>
+    </PackageReference>
     <PackageReference Include="System.Runtime.Caching.Generic">
       <Version>1.0.5</Version>
     </PackageReference>
