@@ -11,7 +11,7 @@ namespace scrbl {
     static class InteractionManager {
 
         private static void LoadEverything() {
-            Utils.PerformColor(ConsoleColor.DarkYellow, () => {
+            PerformColor(ConsoleColor.DarkYellow, () => {
                 Console.WriteLine("Loading dictionaries...");
 
                 Stopwatch watch = Stopwatch.StartNew();
@@ -20,6 +20,8 @@ namespace scrbl {
 
                 Console.WriteLine($"Done! Loaded {/*276,643*/ScrabbleDictionary.Words.Count} words in { watch.Elapsed.Milliseconds }ms.");
             });
+
+            Game.Brain.LoadPoints();
         }
 
         private static List<string> BoardRepresentation() {
@@ -133,24 +135,32 @@ namespace scrbl {
             return $"{wd} {squareOne} {squareTwo}".ToLower();
         }
 
+        public static void GetLetters() {
+            Game.Letters.Clear();
+            Console.Write("Letters: ");
+            string letterInput = Console.ReadLine();
+            while (letterInput != null && !letterInput.All(c => char.IsLetter(c) || c == '_') || letterInput.Length > 7) {
+                Console.Write("Letters: ");
+                letterInput = Console.ReadLine();
+
+                //Count the blanks now so that we don't have to do it whilst evaluating (that would be a huge performance hit).
+                //Game.blankCount = letterInput.Count(x => letterInput[x] == '_');
+            }
+            Game.Letters.AddRange(letterInput.ToUpper().ToCharArray());
+            foreach (char letter in Game.Letters) {
+                if (letter == '_') Game.blankCount++;
+            }
+            Console.WriteLine();
+        }
+
         public static void Run() {
             LoadEverything();
-            Console.Write("How many ");
-            PerformColor(ConsoleColor.DarkCyan, () => { Console.Write("people"); });
-            Console.Write(" are playing? ");
+            Console.Write("How many players are there? (Not including me) ");
 
             int.TryParse(Console.ReadLine(), out int peoplePlaying);
             if (peoplePlaying == 0) return;
-            Console.WriteLine();
 
-            Console.Write("Letters: ");
-            string letterInput = Console.ReadLine();
-            while (!letterInput.All(c => char.IsLetter(c) || c == '_') || letterInput.Length > 7) {
-                Console.Write("Letters: ");
-                letterInput = Console.ReadLine();
-            }
-            ;
-            Game.Letters.AddRange(letterInput.ToUpper().ToCharArray());
+            GetLetters();
 
             while (true) {
                 try {
@@ -181,14 +191,8 @@ namespace scrbl {
                     PerformColor(ConsoleColor.DarkBlue, () => {
                         Console.Write($"'{ScrabbleDictionary.Definitions[selfMove.Word].Trim(null)}'");
                     });
-
-                    Game.Letters.Clear();
-
-                    Console.Write("\n\nLetters: ");
-                    string letInp = Console.ReadLine();
-                    Game.Letters.AddRange(letInp.ToUpper().ToCharArray());
-
                     Console.WriteLine();
+                    GetLetters();
                 } catch (Exception e) {
                     Console.WriteLine($"DEBUG: Encountered error: {e}");
                 }

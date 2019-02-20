@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -72,7 +73,7 @@ namespace scrbl {
         }
 
         //Returns the Letters that we don't have that we need for a given move.
-        private static List<char> LettersRequired(Move move) {
+        private List<char> LettersRequired(Move move) {
             var needed = new List<char>();
 
             //Speed is very important here, hence the use of a for loop and FastContains().
@@ -80,6 +81,26 @@ namespace scrbl {
                 if (!Game.Letters.FastContains(move.Word[i])) {
                     needed.Add(move.Word[i]);
                 }
+            }
+
+            if (Game.blankCount < 1) {
+                return needed;
+            } else {
+                //WHYYYYY
+                var affected = AffectedSquares(move);
+                if (affected.Count < 1) return needed;
+                var lowest = affected[0];
+                int lowestWorth = 42563;
+                //Find the lowest value letter - we will replace this with the blank.
+                for (int i = 0; i < affected.Count; i++) {
+                    int score = Score(new Move(move.Word[i].ToString(), affected[i], affected[i]));
+                    if (score < lowestWorth) {
+                        lowest = affected[i];
+                        lowestWorth = score;
+                    }
+                }
+
+                needed.Remove(move.Word[affected.IndexOf(lowest)]);
             }
 
             return needed;
@@ -105,7 +126,7 @@ namespace scrbl {
 
                     break;
                 }
-                default: {
+                case Direction.Vertical:
                     foreach (var pos in affected) {
                         var squaresInColumn = Game.Board.GetColumn(pos.column);
                         foreach (var sq in squaresInColumn) {
@@ -118,7 +139,6 @@ namespace scrbl {
                     }
 
                     break;
-                }
             }
             List<string> found = bobTheBuilder.ToString().Split(null).ToList();
 
@@ -311,24 +331,25 @@ namespace scrbl {
                 }
             }
 
-            bool gotAllNeeded = !needed.Except(fullAvailable).Any();
+            var diff = needed.Except(fullAvailable);
+            var enumerable = diff as char[] ?? diff.ToArray();
+            bool gotAllNeeded = !enumerable.Any();
             if (!gotAllNeeded) {
-                //Console.WriteLine($"DEBUG: In word {move.word}: Needed {{{string.Join(", ", needed)}}}, only have {{{string.Join(", ", fullAvailable)}}}");
-                return false;
+                if (!(Game.blankCount >= enumerable.ToList().Count)) return false;
             }
 
             //Have we used Letters multiple times where we shouldn't have?
             Dictionary<char, int> legalUses = new Dictionary<char, int>();
             foreach (char letter in fullAvailable) {
-                if (!legalUses.ContainsKey(letter)) {
+                if (!legalUses.Keys.FastContains(letter)) {
                     legalUses[letter] = ((from temp in fullAvailable where temp.Equals(letter) select temp).Count());
                 }
             }
 
             foreach (char letter in move.Word) {
                 int count = (from temp in move.Word where temp.Equals(letter) select temp).Count();
+                if (!legalUses.Keys.FastContains(letter)) continue;
                 if (legalUses[letter] < count) {
-                    //Console.WriteLine($"DEBUG: In word {move.word}: Used letter {letter.ToString()} {count} times when the limit was {legalUses[letter]}.");
                     return false;
                 }
             }
@@ -339,6 +360,7 @@ namespace scrbl {
                 for (int i = Game.Board.Rows.IndexOf(move.FirstLetterPos.row); i < move.Word.Length; i++) {
                     if (Game.Board.Rows.Count <= i) {
                         //No more rows.
+                        Console.WriteLine("DEBUG: Wrapping");
                         return false;
                     }
                 }
@@ -347,6 +369,7 @@ namespace scrbl {
                 for (int i = Game.Board.Columns.IndexOf(move.FirstLetterPos.column); i < move.Word.Length; i++) {
                     if (Game.Board.Columns.Count <= i) {
                         //No more columns.
+                        Console.WriteLine("DEBUG: Wrapping");
                         return false;
                     }
                 }
@@ -489,8 +512,7 @@ namespace scrbl {
 
         Dictionary<char, int> points = new Dictionary<char, int>();
 
-        private int Score(Move move) {
-
+        public void LoadPoints() {
             if (points.Keys.Count < 1) {
                 points = new Dictionary<char, int> {
                     { 'A', 1 },
@@ -521,6 +543,9 @@ namespace scrbl {
                     { 'Z', 10 }
                 };
             }
+        }
+
+        private int Score(Move move) {
 
             /*
              * Premium Word Squares: 
@@ -589,8 +614,6 @@ namespace scrbl {
 
             considered = cons;
             return best;
-
-            //return SelectMove(out considered);
         }
     }
 }

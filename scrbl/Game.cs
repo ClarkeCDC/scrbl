@@ -10,5 +10,6 @@ namespace scrbl {
         public static Board Board = new Board();
 
         public static readonly DecisionMaker Brain = new DecisionMaker();
+        public static int blankCount = 0;
     }
 }
