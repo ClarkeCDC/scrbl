@@ -160,7 +160,7 @@ namespace scrbl {
         }
 
         public bool IsEmpty((int column, char row) pos) {
-            return Letters.Keys.FastContains(pos);
+            return !Letters.Keys.FastContains(pos);
         }
 
         public enum RelativePosition {

@@ -148,7 +148,7 @@ namespace scrbl {
             }
             Game.Letters.AddRange(letterInput.ToUpper().ToCharArray());
             foreach (char letter in Game.Letters) {
-                if (letter == '_') Game.blankCount++;
+                if (letter == '_') Game.BlankCount++;
             }
             Console.WriteLine();
         }

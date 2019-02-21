@@ -83,7 +83,7 @@ namespace scrbl {
                 }
             }
 
-            if (Game.blankCount < 1) {
+            if (Game.BlankCount < 1) {
                 return needed;
             } else {
                 //WHYYYYY
@@ -335,7 +335,7 @@ namespace scrbl {
             var enumerable = diff as char[] ?? diff.ToArray();
             bool gotAllNeeded = !enumerable.Any();
             if (!gotAllNeeded) {
-                if (!(Game.blankCount >= enumerable.ToList().Count)) return false;
+                if (!(Game.BlankCount >= enumerable.ToList().Count)) return false;
             }
 
             //Have we used Letters multiple times where we shouldn't have?
@@ -545,6 +545,18 @@ namespace scrbl {
             }
         }
 
+        private int CountLettersUsed(Move move) {
+            var affected = AffectedSquares(move);
+
+            int used = 0;
+            for (int i = 0; i < affected.Count; i++) {
+                //Only +1 if the square is empty; if it is not empty, it contains the letter that the move would place.
+                if (Game.Board.IsEmpty(affected[i])) used++;
+            }
+
+            return used;
+        }
+
         private int Score(Move move) {
 
             /*
@@ -596,6 +608,12 @@ namespace scrbl {
                 score *= tripleWordHits * 3;
             }
 
+            //BINGO! If you play seven tiles on a turn, it's a Bingo. You score a premium of 50 points after totaling your score for the turn.
+            if (CountLettersUsed(move) > 6) {
+                Console.WriteLine($"DEBUG: Found bonus position for word {move.Word}");
+                score += 50;
+            }
+
             return score;
         }
 
@@ -608,6 +626,7 @@ namespace scrbl {
             
             PerformColor(ConsoleColor.DarkCyan, () => {
                 Console.WriteLine($"DEBUG: Estimated score for word '{best.Word}' where placed: {bestScore}.");
+                Console.WriteLine($"DEBUG: Letters used for word '{best.Word}' where placed: {CountLettersUsed(best)}.");
             });
 
             Console.WriteLine($"DEBUG: Picked {moves.Keys.Count} top moves.");
