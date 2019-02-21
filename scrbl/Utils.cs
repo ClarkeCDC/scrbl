@@ -86,5 +86,17 @@ namespace scrbl {
                 return false;
             }
         }
+
+        //AddRange() for HashSet
+        public static void AddRange<T>(this HashSet<T> me, IEnumerable<T> collection) {
+            var colEnum = collection as T[] ?? collection.ToArray();
+            for (int i = 0; i < colEnum.Length; i++) {
+                me.Add(colEnum[i]);
+            }
+        }
+
+        public static short ToInt(this bool me) {
+            return Convert.ToInt16(me);
+        }
     }
 }

@@ -218,7 +218,8 @@ namespace scrbl {
             var found = new List<(int column, char row)>();
 
             int foundNumber = 0;
-            foreach (var sq in Squares.Keys) {
+            for (int i = 0; i < Squares.Keys.Count; i++) {
+                var sq = Squares.Keys.ToArray()[i];
                 if (foundNumber > 14) break;
                 if (sq.row != row) continue;
                 found.Add(sq);
@@ -226,6 +227,15 @@ namespace scrbl {
             }
 
             return found;
+        }
+
+        public bool RowIsEmpty(char row) {
+            var squares = GetRow(row);
+            for (int i = 0; i < squares.Count; i++) {
+                var square = squares[i];
+                if (!IsEmpty(square)) return false;
+            }
+            return true;
         }
 
         public List<(int column, char row)> GetColumn(int column) {

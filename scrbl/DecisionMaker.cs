@@ -9,18 +9,31 @@ using static scrbl.Utils;
 
 namespace scrbl {
     public class DecisionMaker {
-        //For speeding up evaluation by reducing needless checks.
-
-        //This never actually worked in the first place. Needs rewriting.
         public class Zone {
-            //public HashSet<(int column, char row)> Squares = new HashSet<(int column, char row)>();
+            public System.Collections.Generic.HashSet<(int column, char row)> Squares = new System.Collections.Generic.HashSet<(int column, char row)>();
 
             public static List<Zone> FindEmptyZones() {
-                return new List<Zone>(new[] { new Zone() {/* Squares = upper */}, new Zone {/* Squares = lower */} });
+                Zone up = new Zone();
+                Zone down = new Zone();
+                for (int i = 0; i < Game.Board.Rows.Count; i++) {
+                    if (Game.Board.RowIsEmpty(Game.Board.Rows[i]) &&
+                        (i + 1 >= Game.Board.Rows.Count || Game.Board.RowIsEmpty(Game.Board.Rows[i + 1]))) {
+                        up.Squares.AddRange(Game.Board.GetRow(Game.Board.Rows[i]));
+                    }
+                }
+
+                for (int i = Game.Board.Rows.Count - 1; i >= 0; i--) {
+                    if (Game.Board.RowIsEmpty(Game.Board.Rows[i]) &&
+                        (i - 1 < 0 || Game.Board.RowIsEmpty(Game.Board.Rows[i - 1]))) {
+                        down.Squares.AddRange(Game.Board.GetRow(Game.Board.Rows[i]));
+                    }
+                }
+
+                return new List<Zone>(new[] { up, down });
             }
 
             public bool Contains((int column, char row) pos) {
-                return false;//Squares.FastContains(pos);
+                return Squares.Contains(pos);
             }
         }
 
@@ -55,17 +68,24 @@ namespace scrbl {
 
             var squares = new List<(int column, char row)>();
 
-            if (dir == Direction.Vertical) {
-                for (int i = 0; i < wordLength; i++) {
-                    (int column, char row) square = (move.FirstLetterPos.column,
-                        Game.Board.Rows[Game.Board.Rows.IndexOf(move.FirstLetterPos.row) + i]);
-                    squares.Add(square);
+            switch (dir) {
+                case Direction.Vertical: {
+                    for (int i = 0; i < wordLength; i++) {
+                        (int column, char row) square = (move.FirstLetterPos.column,
+                            Game.Board.Rows[Game.Board.Rows.IndexOf(move.FirstLetterPos.row) + i]);
+                        squares.Add(square);
+                    }
+
+                    break;
                 }
-            } else {
-                for (int i = 0; i < wordLength; i++) {
-                    (int column, char row) square = (Game.Board.Columns[Game.Board.Columns.IndexOf(move.FirstLetterPos.column) + i],
-                        move.FirstLetterPos.row);
-                    squares.Add(square);
+                default: {
+                    for (int i = 0; i < wordLength; i++) {
+                        (int column, char row) square = (Game.Board.Columns[Game.Board.Columns.IndexOf(move.FirstLetterPos.column) + i],
+                            move.FirstLetterPos.row);
+                        squares.Add(square);
+                    }
+
+                    break;
                 }
             }
 
@@ -83,11 +103,16 @@ namespace scrbl {
                 }
             }
 
+            var affected = AffectedSquares(move);
+            for (int i = 0; i < affected.Count; i++) {
+                if (!Game.Board.IsEmpty(affected[i])) {
+                    needed.Remove(Game.Board.GetSquareContents(affected[i]));
+                }
+            }
+
             if (Game.BlankCount < 1) {
                 return needed;
             } else {
-                //WHYYYYY
-                var affected = AffectedSquares(move);
                 if (affected.Count < 1) return needed;
                 var lowest = affected[0];
                 int lowestWorth = 42563;
@@ -160,6 +185,9 @@ namespace scrbl {
                         rowBuilder.Append(affected.FastContains(rowSquares[i])
                             ? move.Word[affected.IndexOf(rowSquares[i])]
                             : Game.Board.GetSquareContents(rowSquares[i]));
+                        if (rowBuilder.ToString().Last() == ' ' && rowBuilder.ToString().Contains(move.Word)) {
+                            break;
+                        }
                     }
 
                     return rowBuilder.ToString().Trim(null);
@@ -173,6 +201,10 @@ namespace scrbl {
                         columnBuilder.Append(affected.FastContains(columnSquares[i])
                             ? move.Word[affected.IndexOf(columnSquares[i])]
                             : Game.Board.GetSquareContents(columnSquares[i]));
+
+                        if (columnBuilder.ToString().Last() == ' ' && columnBuilder.ToString().Contains(move.Word)) {
+                            break;
+                        }
                     }
 
                     return columnBuilder.ToString().Trim(null);
@@ -195,17 +227,14 @@ namespace scrbl {
             //Check if the number of letters we don't have is too many.
             if (LettersRequired(move).Count > 1) return false;
 
-            //Check if the move has already been played.
-            if (Game.OwnMoves.Contains(move) || Game.OpponentMoves.Contains(move)) return false;
-
             //Check if the move will be into an empty zone.
             if (_upperZone.Contains(move.FirstLetterPos) && _upperZone.Contains(move.LastLetterPos)) {
-                Console.WriteLine("DEBUG: Bad zone.");
+                //Console.WriteLine("DEBUG: Bad zone.");
                 return false;
             }
 
             if (_lowerZone.Contains(move.FirstLetterPos) && _lowerZone.Contains(move.LastLetterPos)) {
-                Console.WriteLine("DEBUG: Bad zone.");
+                //Console.WriteLine("DEBUG: Bad zone.");
                 return false;
             }
 
@@ -215,7 +244,7 @@ namespace scrbl {
             foreach (var sq in affected) {
                 var surrounding = Game.Board.GetSurrounding(sq);
                 foreach (var sqq in surrounding) {
-                    if (Game.Board.GetSquareContents(sqq) != ' ') {
+                    if (!Game.Board.IsEmpty(sqq)) {
                         occupied++;
                     }
                 }
@@ -226,21 +255,18 @@ namespace scrbl {
 
             //Keep this last.
             for (int i = 0; i < affected.Count; i++) {
-                if (Game.Board.GetSquareContents(affected[i]) != ' ') goto ded;
+                if (Game.Board.IsEmpty(affected[i])) return true;
             }
+            //We only reach this if we have not placed anything on an empty square.
             return false;
-
-            ded:
-
-            return true;
         }
 
         //Quick eval for base moves. (i.e. the checks are not position-related.)
         bool QuickEvalBase(Move baseMove) {
-            if (LettersRequired(baseMove).Count > 1) return false;
+            //if (LettersRequired(baseMove).Count > 1) return false;
 
             //Check if the Letters we need are on the board.
-            //This provides a speed boost at the start of the game.
+            //This provides a speed boost at the start of the game. The boost lessens are more letters are placed.
             var needed = LettersRequired(baseMove);
 
             if (needed.Except(Game.Board.PlacedLetters).Any()) return false;
@@ -259,9 +285,10 @@ namespace scrbl {
             //Does it connect to another word to create a valid one?
             int iters = 0;
             int emptyIters = 0;
-            foreach (var thing in affected) {
+            for (int i = 0; i < affected.Count; i++) {
+                var thing = affected[i];
                 iters++;
-                if (Game.Board.GetSquareContents(thing) == ' ') emptyIters++;
+                if (Game.Board.IsEmpty(thing)) emptyIters++;
             }
 
             //Check if the number of empty squares it affects == the total number of squares it affects.
@@ -272,7 +299,7 @@ namespace scrbl {
             //Does it fit with the Letters that are already on the board?
             for (int i = 0; i < affected.Count; i++) {
                 var pos = affected[i];
-                if (Game.Board.GetSquareContents(pos) == ' ') continue;
+                if (Game.Board.IsEmpty(pos)) continue;
                 if (Game.Board.GetSquareContents(pos) != move.Word[i]) {
                     return false;
                 }
@@ -283,8 +310,8 @@ namespace scrbl {
             if (string.IsNullOrWhiteSpace(horizontalWord) || horizontalWord.Length < 2) {
                 goto skipH;
             }
-            if (!ScrabbleDictionary.Words.Contains(horizontalWord.ToUpper().Trim(null))) {
-                //Console.WriteLine($"DEBUG: In word {move.word}: Created word {horizontalWord} is invalid.");
+
+            if (!ScrabbleDictionary.Words.Contains(horizontalWord)) {
                 Console.WriteLine($"DEBUG: {move.Word} -> {horizontalWord} X");
                 return false;
             }
@@ -294,8 +321,7 @@ namespace scrbl {
             if (string.IsNullOrWhiteSpace(verticalWord) || verticalWord.Length < 2) {
                 goto skipV;
             }
-            if (!ScrabbleDictionary.Words.Contains(verticalWord.ToUpper().Trim(null))) {
-                //Console.WriteLine($"DEBUG: In word {move.word}: Created word {verticalWord} is invalid.");
+            if (!ScrabbleDictionary.Words.Contains(verticalWord)) {
                 Console.WriteLine($"DEBUG: {move.Word} -> {verticalWord} X");
                 return false;
             }
@@ -303,17 +329,19 @@ namespace scrbl {
             skipV:
             //Check some more words.
             List<string> hWords = ReadLine(move, Direction.Horizontal);
-            foreach (var word in hWords) {
+            for (int i = 0; i < hWords.Count; i++) {
+                var word = hWords[i];
                 if (word.Length < 2) continue;
-                if (!ScrabbleDictionary.Words.Contains(word.ToUpper().Trim(null))) {
+                if (!ScrabbleDictionary.Words.Contains(word)) {
                     return false;
                 }
             }
 
             List<string> vWords = ReadLine(move, Direction.Vertical);
-            foreach (var word in vWords) {
+            for (int i = 0; i < vWords.Count; i++) {
+                var word = vWords[i];
                 if (word.Length < 2) continue;
-                if (!ScrabbleDictionary.Words.Contains(word.ToUpper().Trim(null))) {
+                if (!ScrabbleDictionary.Words.Contains(word)) {
                     return false;
                 }
             }
@@ -321,12 +349,14 @@ namespace scrbl {
             //Does it get the Letters it needs?
             List<char> needed = LettersRequired(move);
             List<char> fullAvailable = new List<char>();
-            foreach (char letter in Game.Letters) {
+            for (int i = 0; i < Game.Letters.Count; i++) {
+                char letter = Game.Letters[i];
                 fullAvailable.Add(letter);
             }
 
-            foreach (var sq in affected) {
-                if (!Game.Board.GetSquareContents(sq).Equals(' ')) {
+            for (int i = 0; i < affected.Count; i++) {
+                var sq = affected[i];
+                if (!Game.Board.IsEmpty(sq)) {
                     fullAvailable.Add(Game.Board.GetSquareContents(sq));
                 }
             }
@@ -335,14 +365,23 @@ namespace scrbl {
             var enumerable = diff as char[] ?? diff.ToArray();
             bool gotAllNeeded = !enumerable.Any();
             if (!gotAllNeeded) {
-                if (!(Game.BlankCount >= enumerable.ToList().Count)) return false;
+                if (!(Game.BlankCount >= enumerable.ToList().Count)) {
+                    return false;
+                }
             }
 
             //Have we used Letters multiple times where we shouldn't have?
-            Dictionary<char, int> legalUses = new Dictionary<char, int>();
-            foreach (char letter in fullAvailable) {
+            var legalUses = new Dictionary<char, int>();
+            for (int j = 0; j < fullAvailable.Count; j++) {
+                char letter = fullAvailable[j];
                 if (!legalUses.Keys.FastContains(letter)) {
-                    legalUses[letter] = ((from temp in fullAvailable where temp.Equals(letter) select temp).Count());
+                    int count = 0;
+                    for (int i = 0; i < fullAvailable.Count; i++) {
+                        char temp = fullAvailable[i];
+                        if (temp.Equals(letter)) count++;
+                    }
+
+                    legalUses[letter] = (count);
                 }
             }
 
@@ -354,27 +393,6 @@ namespace scrbl {
                 }
             }
 
-            //Does it wrap around the board?
-            if (moveDir == Direction.Vertical) {
-                //Check if there are enough rows for the word.
-                for (int i = Game.Board.Rows.IndexOf(move.FirstLetterPos.row); i < move.Word.Length; i++) {
-                    if (Game.Board.Rows.Count <= i) {
-                        //No more rows.
-                        Console.WriteLine("DEBUG: Wrapping");
-                        return false;
-                    }
-                }
-            } else {
-                //Check if there are enough columns for the word.
-                for (int i = Game.Board.Columns.IndexOf(move.FirstLetterPos.column); i < move.Word.Length; i++) {
-                    if (Game.Board.Columns.Count <= i) {
-                        //No more columns.
-                        Console.WriteLine("DEBUG: Wrapping");
-                        return false;
-                    }
-                }
-            }
-
             //A word can be played twice but not a move. (A move holds positioning data, so an identical move would be on top of another.)
             if (Game.OwnMoves.Contains(move) || Game.OpponentMoves.Contains(move)) {
                 return false;
@@ -382,7 +400,7 @@ namespace scrbl {
 
             /* TO DO: Add any other checks that must be completed. */
 
-            if (affected.All(arg => Game.Board.GetSquareContents(arg).ToString() == " ")) return false;
+            //if (affected.All(arg => Game.Board.GetSquareContents(arg).ToString() == " ")) return false;
 
             //All checks passed.
             return true;
@@ -438,13 +456,6 @@ namespace scrbl {
             return new Move(word, start, end);
         }
 
-        /*
-         * Get the top 11 moves. Top 11 because I set the hash dictionary's
-         * capacity to 5 and the fill to 0.1 and that limited it to 11.
-         *
-         * ¯\_(ツ)_/¯ I guess 11 is a good enough number.
-         */
-
         private HashDictionary<Move, int> PossibleBest(out int considered) {
             //Refresh the zones so we make sure we don't discard any possible moves.
             RefreshZones();
@@ -469,12 +480,13 @@ namespace scrbl {
                     //The inverted if statements are just to make code easier to read.
                     //The indentation gets a bit crazy.
                     void FullEval(Move m) {
-                        if (!QuickEval(m)) return;
-                        if (!MoveIsPossible(m)) return;
-
+                        //Before checking if the move is allowed, we calculate the score.
                         int score;
                         if ((score = Score(m)) <= bestScore) return;
 
+                        if (!QuickEval(m)) return;
+                        if (!MoveIsPossible(m)) return;
+                        
                         bestScore = score;
                         moves.Add(m, score);
                     }
@@ -609,10 +621,7 @@ namespace scrbl {
             }
 
             //BINGO! If you play seven tiles on a turn, it's a Bingo. You score a premium of 50 points after totaling your score for the turn.
-            if (CountLettersUsed(move) > 6) {
-                Console.WriteLine($"DEBUG: Found bonus position for word {move.Word}");
-                score += 50;
-            }
+            score += (CountLettersUsed(move) > 6).ToInt() * 50;
 
             return score;
         }
