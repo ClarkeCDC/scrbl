@@ -311,19 +311,36 @@ namespace scrbl {
                 goto skipH;
             }
 
-            if (!ScrabbleDictionary.Words.Contains(horizontalWord)) {
-                Console.WriteLine($"DEBUG: {move.Word} -> {horizontalWord} X");
-                return false;
+            var kreated = horizontalWord.ToUpper().Trim(null).Split(null);
+            for (int i = 0; i < kreated.Length; i++) {
+                var kreation = kreated[i];
+                if (string.IsNullOrWhiteSpace(kreation) || kreation.Length < 2) {
+                    continue;
+                }
+
+                if (!ScrabbleDictionary.Words.Contains(kreation)) {
+                    Console.WriteLine($"DEBUG: {move.Word} -> {kreation} X");
+                    return false;
+                }
             }
+
 
             skipH:
             string verticalWord = ReadWord(move, Direction.Vertical);
             if (string.IsNullOrWhiteSpace(verticalWord) || verticalWord.Length < 2) {
                 goto skipV;
             }
-            if (!ScrabbleDictionary.Words.Contains(verticalWord)) {
-                Console.WriteLine($"DEBUG: {move.Word} -> {verticalWord} X");
-                return false;
+            kreated = verticalWord.ToUpper().Trim(null).Split(null);
+            for (int i = 0; i < kreated.Length; i++) {
+                var kreation = kreated[i];
+                if (string.IsNullOrWhiteSpace(kreation) || kreation.Length < 2) {
+                    continue;
+                }
+
+                if (!ScrabbleDictionary.Words.Contains(kreation)) {
+                    Console.WriteLine($"DEBUG: {move.Word} -> {kreation} X");
+                    return false;
+                }
             }
 
             skipV:
@@ -391,6 +408,13 @@ namespace scrbl {
                 if (legalUses[letter] < count) {
                     return false;
                 }
+            }
+
+            for (int i = 0; i < affected.Count; i++) {
+                if (move.Word[i] == Game.Board.GetSquareContents(affected[i])) continue;
+                if (Game.Letters.FastContains(move.Word[i]) && Game.Board.IsEmpty(affected[i])) continue;
+                if (Game.BlankCount > 0 && !Game.Letters.FastContains(move.Word[i])) continue;
+                return false;
             }
 
             //A word can be played twice but not a move. (A move holds positioning data, so an identical move would be on top of another.)
