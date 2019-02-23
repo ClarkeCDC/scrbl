@@ -179,7 +179,7 @@ namespace scrbl {
                 try {
                     for (int i = 0; i < peoplePlaying; i++) {
                         var opponentMove = GetMoveInput();
-                        if (!ScrabbleDictionary.Words.FastContains(opponentMove.Word)) {
+                        if (!ScrabbleDictionary.Words.Contains(opponentMove.Word)) {
                             PerformColor(ConsoleColor.DarkRed, () => {
                                 Console.WriteLine($"{opponentMove.Word} is not a valid Scrabble word!");
                             });

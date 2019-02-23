@@ -93,18 +93,18 @@ namespace scrbl {
         }
 
         //Returns the Letters that we don't have that we need for a given move.
-        private List<char> LettersRequired(Move move) {
-            var needed = new List<char>();
+        private System.Collections.Generic.HashSet<char> LettersRequired(Move move) {
+            var needed = new System.Collections.Generic.HashSet<char>();
 
             //Speed is very important here, hence the use of a for loop and FastContains().
-            for (int i = 0; i < move.Word.Length; i++) {
+            for (int i = 0, c = move.Word.Length; i < c; i++) {
                 if (!Game.Letters.FastContains(move.Word[i])) {
                     needed.Add(move.Word[i]);
                 }
             }
 
             var affected = AffectedSquares(move);
-            for (int i = 0; i < affected.Count; i++) {
+            for (int i = 0, c = affected.Count; i < c; i++) {
                 if (!Game.Board.IsEmpty(affected[i])) {
                     needed.Remove(Game.Board.GetSquareContents(affected[i]));
                 }
@@ -112,21 +112,22 @@ namespace scrbl {
 
             if (Game.BlankCount < 1) {
                 return needed;
-            } else {
-                if (affected.Count < 1) return needed;
-                var lowest = affected[0];
-                int lowestWorth = 42563;
-                //Find the lowest value letter - we will replace this with the blank.
-                for (int i = 0; i < affected.Count; i++) {
-                    int score = Score(new Move(move.Word[i].ToString(), affected[i], affected[i]));
-                    if (score < lowestWorth) {
-                        lowest = affected[i];
-                        lowestWorth = score;
-                    }
-                }
-
-                needed.Remove(move.Word[affected.IndexOf(lowest)]);
             }
+
+            if (affected.Count < 1) return needed;
+
+            var lowest = affected[0];
+            int lowestWorth = 42563;
+            //Find the lowest value letter - we will replace this with the blank.
+            for (int i = 0, c = affected.Count; i < c; i++) {
+                int score = Score(new Move(move.Word[i].ToString(), affected[i], affected[i]));
+                if (score < lowestWorth) {
+                    lowest = affected[i];
+                    lowestWorth = score;
+                }
+            }
+
+            needed.Remove(move.Word[affected.IndexOf(lowest)]);
 
             return needed;
         }
@@ -138,18 +139,21 @@ namespace scrbl {
             var bobTheBuilder = new StringBuilder();
             switch (readDirection) {
                 case Direction.Horizontal: {
-                        foreach ((int _, char row) in affected) {
-                            var squaresOnRow = Game.Board.GetRow(row);
-                            foreach (var sq in squaresOnRow) {
-                                char contents = Game.Board.GetSquareContents(sq);
-                                if (affected.Contains(sq)) {
-                                    contents = move.Word[affected.IndexOf(sq)];
-                                }
-                                bobTheBuilder.Append(contents);
+                    for (int i = 0; i < affected.Count; i++) {
+                        (int _, char row) = affected[i];
+                        var squaresOnRow = Game.Board.GetRow(row);
+                        for (int j = 0; j < squaresOnRow.Count; j++) {
+                            var sq = squaresOnRow[j];
+                            char contents = Game.Board.GetSquareContents(sq);
+                            if (affected.Contains(sq)) {
+                                contents = move.Word[affected.IndexOf(sq)];
                             }
-                        }
 
-                        break;
+                            bobTheBuilder.Append(contents);
+                        }
+                    }
+
+                    break;
                     }
                 case Direction.Vertical:
                     foreach (var pos in affected) {
@@ -312,6 +316,8 @@ namespace scrbl {
                 goto skipH;
             }
 
+            //Console.WriteLine($"DEBUG: {move.Word} made {horizontalWord}");
+
             var kreated = horizontalWord.ToUpper().Trim(null).Split(null);
             for (int i = 0; i < kreated.Length; i++) {
                 var kreation = kreated[i];
@@ -331,6 +337,8 @@ namespace scrbl {
             if (string.IsNullOrWhiteSpace(verticalWord) || verticalWord.Length < 2) {
                 goto skipV;
             }
+
+            //Console.WriteLine($"DEBUG: {move.Word} made {verticalWord}");
             kreated = verticalWord.ToUpper().Trim(null).Split(null);
             for (int i = 0; i < kreated.Length; i++) {
                 var kreation = kreated[i];
@@ -365,7 +373,7 @@ namespace scrbl {
             }
 
             //Does it get the Letters it needs?
-            List<char> needed = LettersRequired(move);
+            var needed = LettersRequired(move);
             List<char> fullAvailable = new List<char>();
             for (int i = 0; i < Game.Letters.Count; i++) {
                 char letter = Game.Letters[i];
@@ -500,17 +508,17 @@ namespace scrbl {
                     Move baseMove = flip ? CreateMove(word, Direction.Vertical) : CreateMove(word);
                     if (!QuickEvalBase(baseMove)) return;
 
-                    List<char> required = LettersRequired(baseMove);
+                    var required = LettersRequired(baseMove);
                     if (required.Count > 1) return;
 
                     //The inverted if statements are just to make code easier to read.
                     //The indentation gets a bit crazy.
                     void FullEval(Move m) {
-                        //Before checking if the move is allowed, we calculate the score.
+                        if (!QuickEval(m)) return;
                         int score;
                         if ((score = Score(m)) <= bestScore) return;
 
-                        if (!QuickEval(m)) return;
+                        
                         if (!MoveIsPossible(m)) return;
 
                         bestScore = score;
@@ -648,6 +656,8 @@ namespace scrbl {
 
             //BINGO! If you play seven tiles on a turn, it's a Bingo. You score a premium of 50 points after totaling your score for the turn.
             score += (CountLettersUsed(move) > 6).ToInt() * 50;
+
+            /* TO DO: Take into account any scores for words that are created that are not the main one. */
 
             return score;
         }

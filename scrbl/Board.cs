@@ -213,14 +213,19 @@ namespace scrbl {
 
             return surrounding;
         }
+        /*
+        public List<List<(int column, char row)>> LoadAllRows() {
 
+        }
+        */
         public List<(int column, char row)> GetRow(char row) {
             var found = new List<(int column, char row)>();
 
             int foundNumber = 0;
-            for (int i = 0; i < Squares.Keys.Count; i++) {
-                var sq = Squares.Keys.ToArray()[i];
-                if (foundNumber > 14) break;
+            var sqs = Squares.Keys.ToArray();
+
+            for (int i = 0, c = sqs.Length; i < c && foundNumber <= 14; i++) {
+                var sq = sqs[i];
                 if (sq.row != row) continue;
                 found.Add(sq);
                 foundNumber++;
