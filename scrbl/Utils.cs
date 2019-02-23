@@ -98,5 +98,14 @@ namespace scrbl {
         public static short ToInt(this bool me) {
             return Convert.ToInt16(me);
         }
+
+        //I'm lazy, alright? And I like colours.
+        public static void WriteLine(object p, ConsoleColor color) {
+            PerformColor(color, () => Console.WriteLine(p));
+        }
+
+        public static void Write(object p, ConsoleColor color) {
+            PerformColor(color, () => Console.Write(p));
+        }
     }
 }
