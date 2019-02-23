@@ -22,6 +22,17 @@ namespace scrbl {
             });
 
             Game.Brain.LoadPoints();
+            if (File.Exists("save.sav")) {
+                Console.Write("A save file was found. Do you want to load it? y/n ");
+                if ((Console.ReadLine() ?? "y").Contains("y")) {
+                    Game.Load();
+                }
+            }
+            Console.CancelKeyPress += Console_CancelKeyPress;
+        }
+
+        static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e) {
+            Game.Save();
         }
 
         private static List<string> BoardRepresentation() {
@@ -136,6 +147,7 @@ namespace scrbl {
         }
 
         public static void GetLetters() {
+            Game.BlankCount = 0;
             Game.Letters.Clear();
             Console.Write("Letters: ");
             string letterInput = Console.ReadLine();
@@ -175,7 +187,7 @@ namespace scrbl {
                             Game.Board.ExecuteMove(opponentMove, Board.MoveType.Opponent);
                             PrintBoard();
                         }
-                        
+
                     }
 
                     DecisionMaker.Move selfMove = null;
