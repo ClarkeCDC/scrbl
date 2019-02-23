@@ -26,6 +26,7 @@ namespace scrbl {
                 Console.Write("A save file was found. Do you want to load it? y/n ");
                 if ((Console.ReadLine() ?? "y").Contains("y")) {
                     Game.Load();
+                    PrintBoard();
                 }
             }
             Console.CancelKeyPress += Console_CancelKeyPress;

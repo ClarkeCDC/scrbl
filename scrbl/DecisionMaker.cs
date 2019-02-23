@@ -70,23 +70,23 @@ namespace scrbl {
 
             switch (dir) {
                 case Direction.Vertical: {
-                    for (int i = 0; i < wordLength; i++) {
-                        (int column, char row) square = (move.FirstLetterPos.column,
-                            Game.Board.Rows[Game.Board.Rows.IndexOf(move.FirstLetterPos.row) + i]);
-                        squares.Add(square);
-                    }
+                        for (int i = 0; i < wordLength; i++) {
+                            (int column, char row) square = (move.FirstLetterPos.column,
+                                Game.Board.Rows[Game.Board.Rows.IndexOf(move.FirstLetterPos.row) + i]);
+                            squares.Add(square);
+                        }
 
-                    break;
-                }
+                        break;
+                    }
                 default: {
-                    for (int i = 0; i < wordLength; i++) {
-                        (int column, char row) square = (Game.Board.Columns[Game.Board.Columns.IndexOf(move.FirstLetterPos.column) + i],
-                            move.FirstLetterPos.row);
-                        squares.Add(square);
-                    }
+                        for (int i = 0; i < wordLength; i++) {
+                            (int column, char row) square = (Game.Board.Columns[Game.Board.Columns.IndexOf(move.FirstLetterPos.column) + i],
+                                move.FirstLetterPos.row);
+                            squares.Add(square);
+                        }
 
-                    break;
-                }
+                        break;
+                    }
             }
 
             return squares;
@@ -138,19 +138,19 @@ namespace scrbl {
             var bobTheBuilder = new StringBuilder();
             switch (readDirection) {
                 case Direction.Horizontal: {
-                    foreach ((int _, char row) in affected) {
-                        var squaresOnRow = Game.Board.GetRow(row);
-                        foreach (var sq in squaresOnRow) {
-                            char contents = Game.Board.GetSquareContents(sq);
-                            if (affected.Contains(sq)) {
-                                contents = move.Word[affected.IndexOf(sq)];
+                        foreach ((int _, char row) in affected) {
+                            var squaresOnRow = Game.Board.GetRow(row);
+                            foreach (var sq in squaresOnRow) {
+                                char contents = Game.Board.GetSquareContents(sq);
+                                if (affected.Contains(sq)) {
+                                    contents = move.Word[affected.IndexOf(sq)];
+                                }
+                                bobTheBuilder.Append(contents);
                             }
-                            bobTheBuilder.Append(contents);
                         }
-                    }
 
-                    break;
-                }
+                        break;
+                    }
                 case Direction.Vertical:
                     foreach (var pos in affected) {
                         var squaresInColumn = Game.Board.GetColumn(pos.column);
@@ -228,16 +228,16 @@ namespace scrbl {
             if (LettersRequired(move).Count > 1) return false;
 
             //Check if the move will be into an empty zone.
-            if (_upperZone.Contains(move.FirstLetterPos) && _upperZone.Contains(move.LastLetterPos)) {
-                //Console.WriteLine("DEBUG: Bad zone.");
-                return false;
-            }
+            //if (_upperZone.Contains(move.FirstLetterPos) && _upperZone.Contains(move.LastLetterPos)) {
+            //Console.WriteLine("DEBUG: Bad zone.");
+            //  return false;
+            //}
 
-            if (_lowerZone.Contains(move.FirstLetterPos) && _lowerZone.Contains(move.LastLetterPos)) {
-                //Console.WriteLine("DEBUG: Bad zone.");
-                return false;
-            }
-
+            //if (_lowerZone.Contains(move.FirstLetterPos) && _lowerZone.Contains(move.LastLetterPos)) {
+            //Console.WriteLine("DEBUG: Bad zone.");
+            //  return false;
+            //}
+            /*
             //Check if any of the squares surrounding the proposed move are occupied.
             var affected = AffectedSquares(move);
             int occupied = 0;
@@ -252,7 +252,8 @@ namespace scrbl {
 
             if (occupied == 0) return false;
             if (occupied == affected.Count) return false;
-
+            */
+            var affected = AffectedSquares(move);
             //Keep this last.
             for (int i = 0; i < affected.Count; i++) {
                 if (Game.Board.IsEmpty(affected[i])) return true;
@@ -325,7 +326,7 @@ namespace scrbl {
             }
 
 
-            skipH:
+        skipH:
             string verticalWord = ReadWord(move, Direction.Vertical);
             if (string.IsNullOrWhiteSpace(verticalWord) || verticalWord.Length < 2) {
                 goto skipV;
@@ -343,7 +344,7 @@ namespace scrbl {
                 }
             }
 
-            skipV:
+        skipV:
             //Check some more words.
             List<string> hWords = ReadLine(move, Direction.Horizontal);
             for (int i = 0; i < hWords.Count; i++) {
@@ -402,21 +403,22 @@ namespace scrbl {
                 }
             }
 
-            foreach (char letter in move.Word) {
+            for (int i = 0, moveWordLength = move.Word.Length; i < moveWordLength; i++) {
+                char letter = move.Word[i];
                 int count = (from temp in move.Word where temp.Equals(letter) select temp).Count();
                 if (!legalUses.Keys.FastContains(letter)) continue;
                 if (legalUses[letter] < count) {
                     return false;
                 }
             }
-
-            for (int i = 0; i < affected.Count; i++) {
+            /*
+            for (int i = 0, c = affected.Count; i < c; i++) {
                 if (move.Word[i] == Game.Board.GetSquareContents(affected[i])) continue;
                 if (Game.Letters.FastContains(move.Word[i]) && Game.Board.IsEmpty(affected[i])) continue;
                 if (Game.BlankCount > 0 && !Game.Letters.FastContains(move.Word[i])) continue;
                 return false;
             }
-
+            */
             //A word can be played twice but not a move. (A move holds positioning data, so an identical move would be on top of another.)
             if (Game.OwnMoves.Contains(move) || Game.OpponentMoves.Contains(move)) {
                 return false;
@@ -435,30 +437,30 @@ namespace scrbl {
             try {
                 switch (dir) {
                     case Direction.Horizontal: {
-                        int newColumnStart = Game.Board.Columns.IndexOf(move.FirstLetterPos.column) + squares;
-                        int newColumnEnd = Game.Board.Columns.IndexOf(move.LastLetterPos.column) + squares;
-                        if (Game.Board.Columns.Count <= newColumnStart || Game.Board.Columns.Count <= newColumnEnd) {
-                            return Move.Err;
-                        }
-                        (int column, char row) newMoveStart = (Game.Board.Columns[newColumnStart],
-                            move.FirstLetterPos.row);
-                        (int column, char row) newMoveEnd = (Game.Board.Columns[newColumnEnd],
-                            move.LastLetterPos.row);
+                            int newColumnStart = Game.Board.Columns.IndexOf(move.FirstLetterPos.column) + squares;
+                            int newColumnEnd = Game.Board.Columns.IndexOf(move.LastLetterPos.column) + squares;
+                            if (Game.Board.Columns.Count <= newColumnStart || Game.Board.Columns.Count <= newColumnEnd) {
+                                return Move.Err;
+                            }
+                            (int column, char row) newMoveStart = (Game.Board.Columns[newColumnStart],
+                                move.FirstLetterPos.row);
+                            (int column, char row) newMoveEnd = (Game.Board.Columns[newColumnEnd],
+                                move.LastLetterPos.row);
 
-                        return new Move(move.Word, newMoveStart, newMoveEnd);
-                    }
-                    default: {
-                        int newRowStart = Game.Board.Rows.IndexOf(move.FirstLetterPos.row) + squares;
-                        int newRowEnd = Game.Board.Rows.IndexOf(move.LastLetterPos.row) + squares;
-                        if (Game.Board.Rows.Count <= newRowStart || Game.Board.Rows.Count <= newRowEnd) {
-                            return Move.Err;
+                            return new Move(move.Word, newMoveStart, newMoveEnd);
                         }
-                        (int column, char row) newMoveStart = (move.FirstLetterPos.column,
-                            Game.Board.Rows[newRowStart]);
-                        (int column, char row) newMoveEnd = (move.LastLetterPos.column,
-                            Game.Board.Rows[newRowEnd]);
-                        return new Move(move.Word, newMoveStart, newMoveEnd);
-                    }
+                    default: {
+                            int newRowStart = Game.Board.Rows.IndexOf(move.FirstLetterPos.row) + squares;
+                            int newRowEnd = Game.Board.Rows.IndexOf(move.LastLetterPos.row) + squares;
+                            if (Game.Board.Rows.Count <= newRowStart || Game.Board.Rows.Count <= newRowEnd) {
+                                return Move.Err;
+                            }
+                            (int column, char row) newMoveStart = (move.FirstLetterPos.column,
+                                Game.Board.Rows[newRowStart]);
+                            (int column, char row) newMoveEnd = (move.LastLetterPos.column,
+                                Game.Board.Rows[newRowEnd]);
+                            return new Move(move.Word, newMoveStart, newMoveEnd);
+                        }
                 }
             } catch {
                 return Move.Err;
@@ -492,7 +494,7 @@ namespace scrbl {
                     movesConsidered++;
 
                     bool flip = false;
-                    flipTime:
+                flipTime:
 
                     //1. Create a base move from which all moves for this word are derived.
                     Move baseMove = flip ? CreateMove(word, Direction.Vertical) : CreateMove(word);
@@ -510,7 +512,7 @@ namespace scrbl {
 
                         if (!QuickEval(m)) return;
                         if (!MoveIsPossible(m)) return;
-                        
+
                         bestScore = score;
                         moves.Add(m, score);
                     }
@@ -656,7 +658,7 @@ namespace scrbl {
             var pair = moves.OrderByDescending(key => key.Value).First();
             Move best = pair.Key;
             int bestScore = pair.Value;
-            
+
             PerformColor(ConsoleColor.DarkCyan, () => {
                 Console.WriteLine($"DEBUG: Estimated score for word '{best.Word}' where placed: {bestScore}.");
                 Console.WriteLine($"DEBUG: Letters used for word '{best.Word}' where placed: {CountLettersUsed(best)}.");
